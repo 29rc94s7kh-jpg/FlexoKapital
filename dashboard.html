@@ -53,6 +53,7 @@
   .gate .btn{width:100%;}
   .gate.denied{border-color:rgba(224,101,76,.4);}
   .gate.denied h1{color:var(--warn);}
+  .gate-error{color:var(--warn);font-size:13.5px;line-height:1.5;margin:16px 0 0;}
   [hidden]{display:none !important;}
 
   .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:28px;}
@@ -119,6 +120,7 @@
     <h1>Anmeldung erforderlich</h1>
     <p>Diese Seite zeigt die eingegangenen Leads von flexo.kapital. Zugriff nur mit deinem eigenen Google-Konto.</p>
     <button class="btn" id="signInBtn" type="button">Mit Google anmelden</button>
+    <p class="gate-error" id="loginError" hidden></p>
   </div>
 
   <div class="gate denied" id="deniedGate" hidden>
@@ -177,6 +179,7 @@
   var db = firebase.firestore();
 
   var loginGate = document.getElementById('loginGate');
+  var loginError = document.getElementById('loginError');
   var deniedGate = document.getElementById('deniedGate');
   var dashboardContent = document.getElementById('dashboardContent');
   var userRow = document.getElementById('userRow');
@@ -190,11 +193,29 @@
     [loginGate, deniedGate, dashboardContent].forEach(function(e){ e.hidden = (e !== el); });
   }
 
+  var AUTH_ERROR_MESSAGES = {
+    'auth/popup-blocked': 'Der Anmelde-Popup wurde von deinem Browser blockiert. Bitte Popups f\u00fcr diese Seite erlauben und erneut versuchen.',
+    'auth/popup-closed-by-user': 'Anmeldung abgebrochen \u2014 das Popup wurde geschlossen, bevor die Anmeldung fertig war.',
+    'auth/unauthorized-domain': 'Diese Domain ist in Firebase noch nicht f\u00fcr die Anmeldung freigeschaltet (Authentication \u2192 Settings \u2192 Authorized domains).',
+    'auth/cancelled-popup-request': null
+  };
+
+  function showLoginError(err){
+    console.error('Anmeldung fehlgeschlagen:', err);
+    var code = err && err.code;
+    if(!loginError) return;
+    if(AUTH_ERROR_MESSAGES.hasOwnProperty(code) && AUTH_ERROR_MESSAGES[code] === null){
+      loginError.hidden = true;
+      return;
+    }
+    loginError.textContent = AUTH_ERROR_MESSAGES[code] || ('Anmeldung fehlgeschlagen (' + (code || 'unbekannter Fehler') + '). Bitte erneut versuchen.');
+    loginError.hidden = false;
+  }
+
   document.getElementById('signInBtn').addEventListener('click', function(){
+    if(loginError) loginError.hidden = true;
     var provider = new firebase.auth.GoogleAuthProvider();
-    auth.signInWithPopup(provider).catch(function(err){
-      console.error('Anmeldung fehlgeschlagen:', err);
-    });
+    auth.signInWithPopup(provider).catch(showLoginError);
   });
   document.getElementById('signOutBtn').addEventListener('click', function(){ auth.signOut(); });
   document.getElementById('deniedSignOutBtn').addEventListener('click', function(){ auth.signOut(); });
