@@ -177,6 +177,7 @@
   firebase.initializeApp(FIREBASE_CONFIG);
   var auth = firebase.auth();
   var db = firebase.firestore();
+  auth.getRedirectResult().catch(function(err){ if(err && err.code) showLoginError(err); });
 
   var loginGate = document.getElementById('loginGate');
   var loginError = document.getElementById('loginError');
@@ -194,10 +195,8 @@
   }
 
   var AUTH_ERROR_MESSAGES = {
-    'auth/popup-blocked': 'Der Anmelde-Popup wurde von deinem Browser blockiert. Bitte Popups f\u00fcr diese Seite erlauben und erneut versuchen.',
-    'auth/popup-closed-by-user': 'Anmeldung abgebrochen \u2014 das Popup wurde geschlossen, bevor die Anmeldung fertig war.',
     'auth/unauthorized-domain': 'Diese Domain ist in Firebase noch nicht f\u00fcr die Anmeldung freigeschaltet (Authentication \u2192 Settings \u2192 Authorized domains).',
-    'auth/cancelled-popup-request': null
+    'auth/network-request-failed': 'Netzwerkfehler bei der Anmeldung. Bitte Internetverbindung pr\u00fcfen und erneut versuchen.'
   };
 
   function showLoginError(err){
@@ -215,7 +214,7 @@
   document.getElementById('signInBtn').addEventListener('click', function(){
     if(loginError) loginError.hidden = true;
     var provider = new firebase.auth.GoogleAuthProvider();
-    auth.signInWithPopup(provider).catch(showLoginError);
+    auth.signInWithRedirect(provider);
   });
   document.getElementById('signOutBtn').addEventListener('click', function(){ auth.signOut(); });
   document.getElementById('deniedSignOutBtn').addEventListener('click', function(){ auth.signOut(); });
