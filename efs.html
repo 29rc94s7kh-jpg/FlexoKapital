@@ -772,7 +772,7 @@
           <button type="button" data-mode="light">Hell</button>
           <button type="button" data-mode="dark">Dunkel</button>
         </div>
-        <div class="accent-picker" role="group" aria-label="Akzentfarbe">
+        <div class="accent-picker" role="group" aria-label="Akzentfarbe" style="display:none;">
           <button type="button" class="accent-swatch" data-accent="#0ca30c" style="background:#0ca30c" title="Grün" aria-label="Akzentfarbe Grün"></button>
           <button type="button" class="accent-swatch selected" data-accent="#4C7EFF" style="background:#4C7EFF" title="Blau" aria-label="Akzentfarbe Blau"></button>
           <button type="button" class="accent-swatch" data-accent="#5856d6" style="background:#5856d6" title="Indigo" aria-label="Akzentfarbe Indigo"></button>
@@ -4924,7 +4924,7 @@
     }
 
     if (st.theme) applyThemeMode(st.theme);
-    if (st.accent) setAccent(st.accent);
+    setAccent('#4C7EFF'); // Akzentfarbe ist fix auf Flexo-Blau gesetzt, nicht mehr veraenderbar -- gespeicherter st.accent wird bewusst ignoriert.
 
     // Rückwärtskompatibilität: ältere gespeicherte Dateien enthielten ausschließlich die
     // Team-&-Struktur-Daten direkt auf oberster Ebene (kein "fields"/"team"-Wrapper).
