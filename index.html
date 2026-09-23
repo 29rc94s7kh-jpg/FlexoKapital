@@ -750,6 +750,7 @@
             <div class="field"><label for="funnelName">Name</label><input type="text" id="funnelName" name="name" autocomplete="name" required></div>
             <div class="field"><label for="funnelEmail">E-Mail</label><input type="email" id="funnelEmail" name="email" autocomplete="email" required></div>
             <div class="field"><label for="funnelPhone">Telefon</label><input type="tel" id="funnelPhone" name="phone" autocomplete="tel" required></div>
+            <div class="field"><label for="funnelNote">Nachricht (optional)</label><textarea id="funnelNote" name="note" rows="3" placeholder="Willst du uns noch etwas mitteilen?"></textarea></div>
             <button type="submit" class="cta-btn" style="margin-top:6px;">Absenden</button>
           </form>
         </div>
@@ -1300,12 +1301,14 @@
       funnelState.answers._name = document.getElementById('funnelName').value.trim();
       funnelState.answers._email = document.getElementById('funnelEmail').value.trim();
       funnelState.answers._phone = document.getElementById('funnelPhone').value.trim();
+      var funnelVisitorNote = document.getElementById('funnelNote').value.trim();
       saveLead({
         source: 'erstgespraech_funnel',
         name: funnelState.answers._name,
         email: funnelState.answers._email,
         phone: funnelState.answers._phone,
         message: buildFunnelNotes(),
+        visitorNote: funnelVisitorNote,
         answers: funnelState.answers
       });
       funnelGoTo(funnelTotal);
