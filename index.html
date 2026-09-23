@@ -203,29 +203,33 @@ src="https://www.facebook.com/tr?id=1814596462869909&ev=PageView&noscript=1"
 
   /* ---- comparison table ---- */
   .compare-wrap{overflow-x:auto;border-radius:16px;border:1px solid var(--border);background:var(--surface);-webkit-overflow-scrolling:touch;}
-  .compare-table{width:100%;border-collapse:separate;border-spacing:0;min-width:680px;}
-  .compare-table th,.compare-table td{padding:16px 18px;text-align:center;border-bottom:1px solid var(--border);}
+  .compare-table{width:100%;border-collapse:separate;border-spacing:0;min-width:840px;}
+  .compare-table th,.compare-table td{padding:14px 18px;text-align:center;}
+  .compare-table td{border-bottom:1px solid var(--border);}
   .compare-table tr:last-child td{border-bottom:none;}
   .compare-table thead th{
-    font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:13.5px;
-    color:var(--text-dim);padding-top:22px;padding-bottom:18px;vertical-align:bottom;
+    background:var(--surface-2);padding:18px 16px 15px;vertical-align:bottom;
+    border-top-left-radius:12px;border-top-right-radius:12px;
   }
+  .compare-table thead th:first-child{background:none;}
+  .compare-table thead th:nth-child(2){background:var(--accent-soft);}
+  .compare-col-title{
+    display:block;font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;
+    font-size:15.5px;color:var(--text);
+  }
+  .compare-table thead th.is-highlight .compare-col-title{color:var(--accent);}
+  .compare-badge{
+    display:inline-block;margin-top:7px;font-family:'Plus Jakarta Sans',sans-serif;
+    font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);
+  }
+  .compare-badge.is-accent{color:var(--accent);}
   .compare-table td:first-child,.compare-table th:first-child{
-    text-align:left;font-weight:600;color:var(--text);font-size:14.5px;width:28%;
+    text-align:left;font-weight:600;color:var(--text);font-size:15px;width:27%;
   }
-  .compare-table th:nth-child(2){color:var(--accent);}
-  .compare-col-icon{display:block;width:20px;height:20px;margin:0 auto 6px;color:var(--accent);}
-  .compare-flexo-badge{
-    display:inline-block;font-size:10.5px;font-weight:700;color:var(--accent);
-    text-transform:uppercase;letter-spacing:.05em;margin-top:8px;padding:4px 10px;
-    border-radius:99px;background:color-mix(in srgb, var(--accent) 16%, transparent);
-  }
-  .compare-table td:nth-child(2),.compare-table th:nth-child(2){background:var(--accent-soft);}
-  .compare-table thead th:nth-child(2){box-shadow:inset 0 -2px 0 var(--accent);border-top-left-radius:14px;border-top-right-radius:14px;}
+  .compare-table td:nth-child(2){background:var(--accent-soft);}
   .compare-table tr:last-child td:nth-child(2){border-bottom-left-radius:14px;border-bottom-right-radius:14px;}
-  .cmp-row-alt td{background:color-mix(in srgb, var(--surface-2) 55%, transparent);}
-  .cmp-row-alt td:nth-child(2){background:color-mix(in srgb, var(--accent-soft) 130%, var(--surface-2) 15%);}
-  .cmp-icon{display:inline-flex;align-items:center;justify-content:center;width:27px;height:27px;border-radius:50%;}
+  .cmp-row-alt td{background:color-mix(in srgb, var(--surface-2) 45%, transparent);}
+  .cmp-icon{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;}
   .cmp-icon svg{width:13px;height:13px;}
   .cmp-yes{background:rgba(79,191,139,0.16);color:var(--good);}
   .cmp-mid{background:rgba(143,160,166,0.18);color:var(--muted);}
@@ -235,7 +239,7 @@ src="https://www.facebook.com/tr?id=1814596462869909&ev=PageView&noscript=1"
   .compare-footnote{margin-top:18px;font-size:12.5px;color:var(--muted);}
   .compare-scroll-hint{display:none;margin-top:6px;font-size:12px;color:var(--muted);text-align:center;}
   @media (max-width:680px){
-    .compare-table{min-width:600px;}
+    .compare-table{min-width:760px;}
     .compare-scroll-hint{display:block;}
   }
 
@@ -1139,17 +1143,18 @@ src="https://www.facebook.com/tr?id=1814596462869909&ev=PageView&noscript=1"
   var compareCols = [
     {label:'flexo.kapital', badge:'Direkt und unabhängig', highlight:true},
     {label:'Bankfiliale'},
+    {label:'Fondsgebundene Lebensversicherung'},
     {label:'Online-Broker / Robo-Advisor'},
     {label:'Klassischer Vermittler', badge:'Einmalabschluss'}
   ];
   var compareRows = [
-    {feature:'Persönlicher Ansprechpartner, unabhängig vom Anbieter', vals:['yes','mid','no','mid']},
-    {feature:'Verständlich erklärt, ohne Fachchinesisch', vals:['yes','mid','no','mid']},
-    {feature:'KESt-Befreiung durch die Versicherungslösung', vals:['yes','no','no','mid']},
-    {feature:'Kein Verkaufsdruck', vals:['yes','mid','yes','no']},
-    {feature:'Auch mit kleinen, monatlichen Beträgen sinnvoll', vals:['yes','mid','yes','mid']},
-    {feature:'Laufende Begleitung statt Einmal-Termin', vals:['yes','mid','no','no']},
-    {feature:'Kostenloses, unverbindliches Erstgespräch', vals:['yes','mid','no','mid']}
+    {feature:'Persönlicher, unabhängiger Ansprechpartner', vals:['yes','mid','mid','no','mid']},
+    {feature:'Verständlich erklärt, ohne Fachchinesisch', vals:['yes','mid','no','no','mid']},
+    {feature:'Zugang zu KESt-freier Vorsorge', vals:['yes','no','yes','no','mid']},
+    {feature:'Kein Verkaufsdruck', vals:['yes','mid','no','yes','no']},
+    {feature:'Keine hohen Mindestanlagen', vals:['yes','mid','mid','yes','mid']},
+    {feature:'Laufende Begleitung statt Einmal-Termin', vals:['yes','mid','no','no','no']},
+    {feature:'Kostenloses, unverbindliches Erstgespräch', vals:['yes','mid','mid','no','mid']}
   ];
   var cmpIcons = {
     yes:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>',
@@ -1162,8 +1167,8 @@ src="https://www.facebook.com/tr?id=1814596462869909&ev=PageView&noscript=1"
     var body = document.getElementById('compareBody');
     if(!head || !body) return;
     head.innerHTML = '<th></th>' + compareCols.map(function(c){
-      var icon = c.highlight ? '<svg class="compare-col-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 4 6v6c0 4.5 3.2 7.4 8 9 4.8-1.6 8-4.5 8-9V6l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg>' : '';
-      return '<th>'+icon+c.label+(c.badge ? '<span class="compare-flexo-badge">'+c.badge+'</span>' : '')+'</th>';
+      var badge = c.badge ? '<span class="compare-badge'+(c.highlight ? ' is-accent' : '')+'">'+c.badge+'</span>' : '';
+      return '<th'+(c.highlight ? ' class="is-highlight"' : '')+'><span class="compare-col-title">'+c.label+'</span>'+badge+'</th>';
     }).join('');
     body.innerHTML = compareRows.map(function(row, i){
       var cells = row.vals.map(function(v){
