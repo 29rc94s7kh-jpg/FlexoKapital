@@ -202,21 +202,29 @@ src="https://www.facebook.com/tr?id=1814596462869909&ev=PageView&noscript=1"
   .services-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;}
 
   /* ---- comparison table ---- */
-  .compare-wrap{overflow-x:auto;border-radius:16px;border:1px solid var(--border);background:var(--surface);}
-  .compare-table{width:100%;border-collapse:collapse;min-width:660px;}
+  .compare-wrap{overflow-x:auto;border-radius:16px;border:1px solid var(--border);background:var(--surface);-webkit-overflow-scrolling:touch;}
+  .compare-table{width:100%;border-collapse:separate;border-spacing:0;min-width:680px;}
   .compare-table th,.compare-table td{padding:16px 18px;text-align:center;border-bottom:1px solid var(--border);}
   .compare-table tr:last-child td{border-bottom:none;}
   .compare-table thead th{
     font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:13.5px;
-    color:var(--text-dim);padding-top:20px;padding-bottom:20px;vertical-align:bottom;
+    color:var(--text-dim);padding-top:22px;padding-bottom:18px;vertical-align:bottom;
   }
   .compare-table td:first-child,.compare-table th:first-child{
-    text-align:left;font-weight:600;color:var(--text);font-size:14.5px;width:30%;
+    text-align:left;font-weight:600;color:var(--text);font-size:14.5px;width:28%;
   }
   .compare-table th:nth-child(2){color:var(--accent);}
-  .compare-flexo-badge{display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:none;letter-spacing:0;margin-top:3px;}
+  .compare-col-icon{display:block;width:20px;height:20px;margin:0 auto 6px;color:var(--accent);}
+  .compare-flexo-badge{
+    display:inline-block;font-size:10.5px;font-weight:700;color:var(--accent);
+    text-transform:uppercase;letter-spacing:.05em;margin-top:8px;padding:4px 10px;
+    border-radius:99px;background:color-mix(in srgb, var(--accent) 16%, transparent);
+  }
   .compare-table td:nth-child(2),.compare-table th:nth-child(2){background:var(--accent-soft);}
-  .compare-table thead th:nth-child(2){box-shadow:inset 0 -2px 0 var(--accent);}
+  .compare-table thead th:nth-child(2){box-shadow:inset 0 -2px 0 var(--accent);border-top-left-radius:14px;border-top-right-radius:14px;}
+  .compare-table tr:last-child td:nth-child(2){border-bottom-left-radius:14px;border-bottom-right-radius:14px;}
+  .cmp-row-alt td{background:color-mix(in srgb, var(--surface-2) 55%, transparent);}
+  .cmp-row-alt td:nth-child(2){background:color-mix(in srgb, var(--accent-soft) 130%, var(--surface-2) 15%);}
   .cmp-icon{display:inline-flex;align-items:center;justify-content:center;width:27px;height:27px;border-radius:50%;}
   .cmp-icon svg{width:13px;height:13px;}
   .cmp-yes{background:rgba(79,191,139,0.16);color:var(--good);}
@@ -225,8 +233,10 @@ src="https://www.facebook.com/tr?id=1814596462869909&ev=PageView&noscript=1"
   .compare-legend{display:flex;gap:22px;flex-wrap:wrap;margin-top:16px;font-size:13px;color:var(--muted);}
   .compare-legend span{display:inline-flex;align-items:center;gap:8px;}
   .compare-footnote{margin-top:18px;font-size:12.5px;color:var(--muted);}
+  .compare-scroll-hint{display:none;margin-top:6px;font-size:12px;color:var(--muted);text-align:center;}
   @media (max-width:680px){
-    .compare-table{min-width:580px;}
+    .compare-table{min-width:600px;}
+    .compare-scroll-hint{display:block;}
   }
 
   .myth-row{
@@ -570,6 +580,7 @@ src="https://www.facebook.com/tr?id=1814596462869909&ev=PageView&noscript=1"
         <span><span class="cmp-icon cmp-no" style="width:18px;height:18px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M18 6 6 18M6 6l12 12"/></svg></span>trifft nicht zu</span>
       </div>
       <p class="compare-footnote reveal">Die Einordnung bezieht sich auf typische Ausprägungen der jeweiligen Option in Österreich und kann im Einzelfall abweichen.</p>
+      <p class="compare-scroll-hint reveal">← Zur Seite wischen, um alle Spalten zu sehen →</p>
     </div>
 
     <div class="wrap" style="padding-top:16px;padding-bottom:80px;">
@@ -1126,14 +1137,15 @@ src="https://www.facebook.com/tr?id=1814596462869909&ev=PageView&noscript=1"
 
   // ---- comparison table (Startseite): flexo.kapital vs. andere Wege ----
   var compareCols = [
-    {label:'flexo.kapital', badge:'Unsere Beratung', highlight:true},
+    {label:'flexo.kapital', badge:'Direkt und unabhängig', highlight:true},
     {label:'Bankfiliale'},
     {label:'Online-Broker / Robo-Advisor'},
     {label:'Klassischer Vermittler', badge:'Einmalabschluss'}
   ];
   var compareRows = [
-    {feature:'Persönliche, unabhängige Beratung', vals:['yes','mid','no','mid']},
+    {feature:'Persönlicher Ansprechpartner, unabhängig vom Anbieter', vals:['yes','mid','no','mid']},
     {feature:'Verständlich erklärt, ohne Fachchinesisch', vals:['yes','mid','no','mid']},
+    {feature:'KESt-Befreiung durch die Versicherungslösung', vals:['yes','no','no','mid']},
     {feature:'Kein Verkaufsdruck', vals:['yes','mid','yes','no']},
     {feature:'Auch mit kleinen, monatlichen Beträgen sinnvoll', vals:['yes','mid','yes','mid']},
     {feature:'Laufende Begleitung statt Einmal-Termin', vals:['yes','mid','no','no']},
@@ -1150,13 +1162,14 @@ src="https://www.facebook.com/tr?id=1814596462869909&ev=PageView&noscript=1"
     var body = document.getElementById('compareBody');
     if(!head || !body) return;
     head.innerHTML = '<th></th>' + compareCols.map(function(c){
-      return '<th>'+c.label+(c.badge ? '<span class="compare-flexo-badge">'+c.badge+'</span>' : '')+'</th>';
+      var icon = c.highlight ? '<svg class="compare-col-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 4 6v6c0 4.5 3.2 7.4 8 9 4.8-1.6 8-4.5 8-9V6l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg>' : '';
+      return '<th>'+icon+c.label+(c.badge ? '<span class="compare-flexo-badge">'+c.badge+'</span>' : '')+'</th>';
     }).join('');
-    body.innerHTML = compareRows.map(function(row){
+    body.innerHTML = compareRows.map(function(row, i){
       var cells = row.vals.map(function(v){
         return '<td><span class="cmp-icon cmp-'+v+'" title="'+cmpTitle[v]+'">'+cmpIcons[v]+'</span></td>';
       }).join('');
-      return '<tr><td>'+row.feature+'</td>'+cells+'</tr>';
+      return '<tr'+(i % 2 === 1 ? ' class="cmp-row-alt"' : '')+'><td>'+row.feature+'</td>'+cells+'</tr>';
     }).join('');
   }
   renderCompareTable();
