@@ -7,28 +7,29 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CiAgPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTQiIGZpbGw9IiMwYjBiMGMiLz4KICA8cmVjdCB4PSIxMyIgeT0iMzQiIHdpZHRoPSIxMCIgaGVpZ2h0PSIxNyIgcng9IjIuNSIgZmlsbD0iIzBjYTMwYyIvPgogIDxyZWN0IHg9IjI3IiB5PSIyMyIgd2lkdGg9IjEwIiBoZWlnaHQ9IjI4IiByeD0iMi41IiBmaWxsPSIjMGNhMzBjIi8+CiAgPHJlY3QgeD0iNDEiIHk9IjEyIiB3aWR0aD0iMTAiIGhlaWdodD0iMzkiIHJ4PSIyLjUiIGZpbGw9IiMwY2EzMGMiLz4KPC9zdmc+Cg==">
 <meta name="theme-color" content="#0b0b0c">
 <meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
 <style>
   .viz-root {
     color-scheme: light;
     --surface-1:      #ffffff;
     --surface-2:      #ffffff;
     --surface-raised: #ffffff;
-    --page:           #f2f2f4;
-    --text-primary:   #0b0b0c;
-    --text-secondary: #5b5b60;
-    --text-muted:     #8b8b90;
-    --gridline:       #e8e8ea;
-    --border:         rgba(11,11,12,0.08);
+    --page:           #F4F6F9;
+    --text-primary:   #0C1116;
+    --text-secondary: #4A5560;
+    --text-muted:     #7C8890;
+    --gridline:       #E4E8EC;
+    --border:         rgba(12,17,22,0.09);
     --series-ausgaben:   #2a78d6; /* blue */
     --series-ust:        #eb6834; /* orange */
     --series-sv:         #1baf7a; /* aqua */
     --series-est:        #4a3aa7; /* violet */
     --series-netto:      #0ca30c; /* good/green */
-    --chip-bg:        #f0f0f2;
-    --accent:         #0ca30c;
-    --accent-ink:     #0b0b0c;
-    --accent-soft:    rgba(12,163,12,0.14);
-    --accent-vivid:   #0ca30c;
+    --chip-bg:        #EEF1F5;
+    --accent:         #3D67E0;
+    --accent-ink:     #ffffff;
+    --accent-soft:    rgba(61,103,224,0.12);
+    --accent-vivid:   #3D67E0;
     --radius-lg:      22px;
     --radius-md:      16px;
     --radius-sm:      11px;
@@ -45,31 +46,31 @@
   @media (prefers-color-scheme: dark) {
     :root:where(:not([data-theme="light"])) .viz-root {
       color-scheme: dark;
-      --surface-1:      #161618;
-      --surface-2:      #1c1c1f;
-      --surface-raised: #202023;
-      --page:           #000000;
-      --text-primary:   #f5f5f7;
-      --text-secondary: #a3a3a8;
-      --text-muted:     #7b7b80;
-      --gridline:       #29292c;
-      --border:         rgba(255,255,255,0.08);
+      --surface-1:      #12191F;
+      --surface-2:      #171F27;
+      --surface-raised: #1B242C;
+      --page:           #0C1116;
+      --text-primary:   #F3F6F5;
+      --text-secondary: #B9C2C1;
+      --text-muted:     #8FA0A6;
+      --gridline:       #212B33;
+      --border:         #212B33;
       --series-ausgaben:   #3987e5;
       --series-ust:        #d95926;
       --series-sv:         #199e70;
       --series-est:        #9085e9;
       --series-netto:      #17d62a;
-      --chip-bg:        #242427;
-      --accent:         #0ca30c;
-      --accent-ink:     #0b0b0c;
-      --accent-soft:    rgba(12,163,12,0.14);
-      --accent-vivid:   #0ca30c;
+      --chip-bg:        #171F27;
+      --accent:         #4C7EFF;
+      --accent-ink:     #ffffff;
+      --accent-soft:    rgba(76,126,255,.18);
+      --accent-vivid:   #4C7EFF;
       --shadow-card:    0 1px 0 rgba(255,255,255,0.03) inset, 0 12px 28px -16px rgba(0,0,0,0.7);
       --shadow-pop:     0 1px 0 rgba(255,255,255,0.03) inset, 0 22px 40px -16px rgba(0,0,0,0.8);
-      --spotlight-bg:   #101211;
+      --spotlight-bg:   #10161D;
       --spotlight-border: transparent;
-      --spotlight-ink:  #ffffff;
-      --spotlight-sub:  rgba(255,255,255,0.5);
+      --spotlight-ink:  var(--text-primary);
+      --spotlight-sub:  rgba(243,246,245,0.55);
       --spotlight-value: var(--accent-vivid);
       --glass-border:   color-mix(in srgb, var(--accent) 45%, transparent);
       --glass-highlight: color-mix(in srgb, white 12%, transparent);
@@ -77,31 +78,31 @@
   }
   :root[data-theme="dark"] .viz-root {
     color-scheme: dark;
-    --surface-1:      #161618;
-    --surface-2:      #1c1c1f;
-    --surface-raised: #202023;
-    --page:           #000000;
-    --text-primary:   #f5f5f7;
-    --text-secondary: #a3a3a8;
-    --text-muted:     #7b7b80;
-    --gridline:       #29292c;
-    --border:         rgba(255,255,255,0.08);
+    --surface-1:      #12191F;
+    --surface-2:      #171F27;
+    --surface-raised: #1B242C;
+    --page:           #0C1116;
+    --text-primary:   #F3F6F5;
+    --text-secondary: #B9C2C1;
+    --text-muted:     #8FA0A6;
+    --gridline:       #212B33;
+    --border:         #212B33;
     --series-ausgaben:   #3987e5;
     --series-ust:        #d95926;
     --series-sv:         #199e70;
     --series-est:        #9085e9;
     --series-netto:      #17d62a;
-    --chip-bg:        #242427;
-    --accent:         #0ca30c;
-    --accent-ink:     #0b0b0c;
-    --accent-soft:    rgba(12,163,12,0.14);
-    --accent-vivid:   #0ca30c;
+    --chip-bg:        #171F27;
+    --accent:         #4C7EFF;
+    --accent-ink:     #ffffff;
+    --accent-soft:    rgba(76,126,255,.18);
+    --accent-vivid:   #4C7EFF;
     --shadow-card:    0 1px 0 rgba(255,255,255,0.03) inset, 0 12px 28px -16px rgba(0,0,0,0.7);
     --shadow-pop:     0 1px 0 rgba(255,255,255,0.03) inset, 0 22px 40px -16px rgba(0,0,0,0.8);
-    --spotlight-bg:   #101211;
+    --spotlight-bg:   #10161D;
     --spotlight-border: transparent;
-    --spotlight-ink:  #ffffff;
-    --spotlight-sub:  rgba(255,255,255,0.5);
+    --spotlight-ink:  var(--text-primary);
+    --spotlight-sub:  rgba(243,246,245,0.55);
     --spotlight-value: var(--accent-vivid);
     --glass-border:   color-mix(in srgb, var(--accent) 45%, transparent);
     --glass-highlight: color-mix(in srgb, white 12%, transparent);
@@ -110,7 +111,7 @@
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body {
     margin: 0; padding: 0;
-    font-family: -apple-system, system-ui, "SF Pro Display", "Segoe UI", sans-serif;
+    font-family: 'Plus Jakarta Sans', -apple-system, system-ui, "Segoe UI", sans-serif;
     background: var(--page);
     color: var(--text-primary);
     -webkit-font-smoothing: antialiased;
@@ -772,15 +773,15 @@
           <button type="button" data-mode="dark">Dunkel</button>
         </div>
         <div class="accent-picker" role="group" aria-label="Akzentfarbe">
-          <button type="button" class="accent-swatch selected" data-accent="#0ca30c" style="background:#0ca30c" title="Grün" aria-label="Akzentfarbe Grün"></button>
-          <button type="button" class="accent-swatch" data-accent="#0071e3" style="background:#0071e3" title="Blau" aria-label="Akzentfarbe Blau"></button>
+          <button type="button" class="accent-swatch" data-accent="#0ca30c" style="background:#0ca30c" title="Grün" aria-label="Akzentfarbe Grün"></button>
+          <button type="button" class="accent-swatch selected" data-accent="#4C7EFF" style="background:#4C7EFF" title="Blau" aria-label="Akzentfarbe Blau"></button>
           <button type="button" class="accent-swatch" data-accent="#5856d6" style="background:#5856d6" title="Indigo" aria-label="Akzentfarbe Indigo"></button>
           <button type="button" class="accent-swatch" data-accent="#af52de" style="background:#af52de" title="Violett" aria-label="Akzentfarbe Violett"></button>
           <button type="button" class="accent-swatch" data-accent="#ff2d55" style="background:#ff2d55" title="Pink" aria-label="Akzentfarbe Pink"></button>
           <button type="button" class="accent-swatch" data-accent="#ff9500" style="background:#ff9500" title="Orange" aria-label="Akzentfarbe Orange"></button>
           <button type="button" class="accent-swatch" data-accent="#00b8a9" style="background:#00b8a9" title="Türkis" aria-label="Akzentfarbe Türkis"></button>
           <label class="accent-swatch accent-custom" id="accentCustomSwatch" title="Eigene Farbe wählen" aria-label="Eigene Akzentfarbe wählen">
-            <input type="color" id="accentCustomInput" value="#0ca30c">
+            <input type="color" id="accentCustomInput" value="#4C7EFF">
           </label>
         </div>
       </div>
@@ -793,7 +794,6 @@
       <button type="button" data-maintab="einheiten">Einheitenrechner</button>
       <button type="button" data-maintab="lv">Uniqa FlexSelection</button>
       <button type="button" data-maintab="rechner">Steuerrechner</button>
-      <button type="button" data-maintab="notizen">Notizen</button>
     </div>
 
     <!-- ============================================================ -->
@@ -1965,7 +1965,7 @@
     return '#ffffff';
   }
 
-  var currentAccentHex = '#0ca30c';
+  var currentAccentHex = '#4C7EFF';
 
   function setAccent(hex) {
     currentAccentHex = hex;
