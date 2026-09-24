@@ -935,7 +935,6 @@ src="https://www.facebook.com/tr?id=1814596462869909&ev=PageView&noscript=1"
 
 <script src="https://cdn.jsdelivr.net/npm/firebase@10.13.0/firebase-app-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/firebase@10.13.0/firebase-firestore-compat.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script>
 (function(){
   var prefersReduced = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -972,22 +971,6 @@ src="https://www.facebook.com/tr?id=1814596462869909&ev=PageView&noscript=1"
     }).catch(function(err){
       console.error('Lead konnte nicht gespeichert werden:', err);
       return {ok:false, error:err};
-    });
-  }
-
-  // ---- EmailJS (automatische Bestätigungsmail) ----
-  var EMAILJS_PUBLIC_KEY = 'KrqqtVAW5EXiJlnEU';
-  var EMAILJS_SERVICE_ID = 'service_office';
-  var EMAILJS_TEMPLATE_FUNNEL = 'template_31eunzx';   // Erstgespräch-Funnel (mit Telefonnummer)
-  var EMAILJS_TEMPLATE_KONTAKT = 'template_dvkkkw9';  // einfaches Kontaktformular (ohne Telefonnummer)
-  if(window.emailjs){
-    emailjs.init({publicKey: EMAILJS_PUBLIC_KEY});
-  }
-
-  function sendConfirmationEmail(templateId, params){
-    if(!window.emailjs) return;
-    emailjs.send(EMAILJS_SERVICE_ID, templateId, params).catch(function(err){
-      console.error('Bestätigungsmail konnte nicht gesendet werden:', err);
     });
   }
 
@@ -1363,15 +1346,7 @@ src="https://www.facebook.com/tr?id=1814596462869909&ev=PageView&noscript=1"
         visitorNote: funnelVisitorNote,
         answers: funnelState.answers
       }).then(function(res){
-        if(res.ok){
-          if(typeof fbq === 'function') fbq('track', 'Lead', {content_category: 'erstgespraech_funnel'});
-          sendConfirmationEmail(EMAILJS_TEMPLATE_FUNNEL, {
-            name: funnelState.answers._name,
-            email: funnelState.answers._email,
-            phone: funnelState.answers._phone,
-            note: funnelVisitorNote
-          });
-        }
+        if(res.ok && typeof fbq === 'function') fbq('track', 'Lead', {content_category: 'erstgespraech_funnel'});
       });
       funnelGoTo(funnelTotal);
     });
@@ -1386,14 +1361,11 @@ src="https://www.facebook.com/tr?id=1814596462869909&ev=PageView&noscript=1"
       submitBtn.disabled = true;
       statusEl.style.color = 'var(--text-dim)';
       statusEl.textContent = 'Wird gesendet …';
-      var contactMsgName = document.getElementById('f-name').value.trim();
-      var contactMsgEmail = document.getElementById('f-mail').value.trim();
-      var contactMsgText = document.getElementById('f-msg').value.trim();
       saveLead({
         source: 'kontaktformular',
-        name: contactMsgName,
-        email: contactMsgEmail,
-        message: contactMsgText
+        name: document.getElementById('f-name').value.trim(),
+        email: document.getElementById('f-mail').value.trim(),
+        message: document.getElementById('f-msg').value.trim()
       }).then(function(res){
         submitBtn.disabled = false;
         if(res.ok){
@@ -1401,11 +1373,6 @@ src="https://www.facebook.com/tr?id=1814596462869909&ev=PageView&noscript=1"
           statusEl.textContent = 'Danke! Wir melden uns bald bei dir.';
           contactMsgForm.reset();
           if(typeof fbq === 'function') fbq('track', 'Lead', {content_category: 'kontaktformular'});
-          sendConfirmationEmail(EMAILJS_TEMPLATE_KONTAKT, {
-            name: contactMsgName,
-            email: contactMsgEmail,
-            note: contactMsgText
-          });
         } else {
           statusEl.style.color = 'var(--warn, #E0654C)';
           statusEl.textContent = 'Senden hat nicht geklappt — schreib uns bitte direkt an office@flexokapital.at';
