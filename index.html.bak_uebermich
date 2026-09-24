@@ -480,7 +480,7 @@ src="https://www.facebook.com/tr?id=1814596462869909&ev=PageView&noscript=1"
         <div>
           <div class="eyebrow">Unabhängiger Kapitalaufbau</div>
           <h1>Geldanlage,<br>ohne <em>Mythen</em>.</h1>
-          <p class="hero-sub">flexo.kapital bringt Klarheit in Kapitalanlage-Entscheidungen — einfach, verständlich und kompetent erklärt, unabhängig vom Bauchgefühl. Für alle, die anfangen wollen, aber bisher gezögert haben.</p>
+          <p class="hero-sub">flexo.kapital bringt Klarheit in Kapitalanlage-Entscheidungen — verständlich, unabhängig vom Bauchgefühl und ohne Fachchinesisch. Für alle, die anfangen wollen, aber bisher gezögert haben.</p>
           <div class="hero-ctas">
             <button class="cta-btn" data-nav="erstgespraech">Kostenloses Erstgespräch buchen</button>
             <button class="cta-btn ghost" data-nav="leistungen">Leistungen ansehen</button>
@@ -673,10 +673,10 @@ src="https://www.facebook.com/tr?id=1814596462869909&ev=PageView&noscript=1"
         <div class="about-copy reveal">
           <div class="eyebrow">Über mich</div>
           <h2 style="font-size:clamp(26px,3.2vw,36px);margin-bottom:18px;">Hallo, ich bin Raphael.</h2>
-          <p>Die Finanzbranche interessiert mich schon seit Langem. Mittlerweile bin ich geprüfter Versicherungsagent im Netzwerk der Euro Finanz Service AG (EFS-AG) und auf Kapitalanlage spezialisiert. Mit flexo.kapital verfolge ich einen klaren Anspruch: Geldanlage einfach, verständlich und kompetent zu erklären — so, wie ich sie mir selbst gewünscht hätte, ohne Verkaufsdruck.</p>
+          <p>Ich arbeite im Netzwerk der Euro Finanz Service AG (EFS-AG) im Bereich Finanzdienstleistung und Versicherung und bilde mich aktuell für die Befähigungsprüfung zum Versicherungsagenten weiter. flexo.kapital ist mein persönlicher Ansatz, Kapitalanlage so zu erklären, wie ich sie mir selbst gewünscht hätte: verständlich, ohne Verkaufsdruck und ohne Fachchinesisch.</p>
           <p>Mein Hintergrund ist technisch — HTL mit Schwerpunkt Informatik — und genau diese Denkweise bringe ich in jedes Gespräch ein: Strukturen einfach machen, statt sie komplizierter wirken zu lassen als nötig.</p>
           <div class="about-facts">
-            <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>Geprüfter Versicherungsagent, tätig im EFS-AG-Netzwerk</div>
+            <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>Tätig im EFS-AG-Netzwerk, Finanzdienstleistung &amp; Versicherung</div>
             <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>Technischer Hintergrund (HTL Informatik)</div>
             <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>Basiert in Österreich, Gespräche auf Deutsch</div>
           </div>
@@ -1166,7 +1166,7 @@ src="https://www.facebook.com/tr?id=1814596462869909&ev=PageView&noscript=1"
   ];
   var compareRows = [
     {feature:'Persönlicher, unabhängiger Ansprechpartner', vals:['yes','mid','mid','no','mid']},
-    {feature:'Einfach, verständlich und kompetent erklärt', vals:['yes','mid','no','no','mid']},
+    {feature:'Verständlich erklärt, ohne Fachchinesisch', vals:['yes','mid','no','no','mid']},
     {feature:'Zugang zu KESt-freier Vorsorge', vals:['yes','no','yes','no','mid']},
     {feature:'Kein Verkaufsdruck', vals:['yes','mid','no','yes','no']},
     {feature:'Keine hohen Mindestanlagen', vals:['yes','mid','mid','yes','mid']},
