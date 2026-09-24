@@ -35,18 +35,16 @@ window.__loadMetaPixel = function(){
 @font-face{font-family:'Plus Jakarta Sans';font-style:normal;font-weight:800;font-display:swap;src:url('fonts/plus-jakarta-sans-latin-800-normal.woff2') format('woff2');}
 </style>
 <style>
-  body.cookie-modal-open{overflow:hidden;}
-  .cookie-modal{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(6,9,12,0.72);backdrop-filter:blur(3px);}
-  .cookie-modal-card{max-width:480px;width:100%;background:var(--surface);border:1px solid var(--border-strong);border-radius:16px;box-shadow:var(--shadow);padding:28px 26px;}
-  .cookie-modal-card h3{margin:0 0 10px;font-size:19px;}
-  .cookie-modal-card p{margin:0 0 22px;color:var(--text-dim);font-size:14px;line-height:1.6;}
-  .cookie-modal-card .cookie-link{color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:2px;}
-  .cookie-modal-actions{display:flex;gap:10px;}
-  .cookie-modal-actions button{flex:1;padding:12px 16px;font-size:14px;font-weight:700;border-radius:10px;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;}
-  .cookie-modal-actions .cookie-btn-accept{background:var(--accent);color:#fff;border:1px solid var(--accent);}
-  .cookie-modal-actions .cookie-btn-reject{background:var(--surface-2);color:var(--text);border:1px solid var(--border-strong);}
-  @media (max-width:480px){
-    .cookie-modal-actions{flex-direction:column;}
+  .cookie-banner{position:fixed;left:0;right:0;bottom:0;z-index:9999;background:var(--surface);border-top:1px solid var(--border-strong);box-shadow:var(--shadow);padding:18px 20px;}
+  .cookie-banner-inner{max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;}
+  .cookie-banner-inner p{margin:0;color:var(--text-dim);font-size:13.5px;line-height:1.55;max-width:640px;}
+  .cookie-banner-inner .cookie-link{color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:2px;}
+  .cookie-banner-actions{display:flex;gap:10px;flex-shrink:0;}
+  .cookie-banner-actions .cta-btn{padding:10px 18px;font-size:13.5px;}
+  @media (max-width:640px){
+    .cookie-banner-inner{flex-direction:column;align-items:stretch;}
+    .cookie-banner-actions{justify-content:stretch;}
+    .cookie-banner-actions .cta-btn{flex:1;}
   }
 </style>
 <style>
@@ -1456,13 +1454,12 @@ window.__loadMetaPixel = function(){
 })();
 </script>
 
-<div id="cookie-banner" class="cookie-modal" role="dialog" aria-modal="true" aria-label="Cookie-Einstellungen" hidden>
-  <div class="cookie-modal-card">
-    <h3>Cookies &amp; Datenschutz</h3>
+<div id="cookie-banner" class="cookie-banner" role="dialog" aria-label="Cookie-Einstellungen" hidden>
+  <div class="cookie-banner-inner">
     <p>Wir m&ouml;chten mit einem Marketing-Tool (Meta-Pixel) besser verstehen, wie unsere Inhalte ankommen. Das l&auml;uft nur mit deiner Zustimmung. Details in der <span data-nav="datenschutz" class="cookie-link" id="cookie-banner-datenschutz-link">Datenschutzerkl&auml;rung</span>.</p>
-    <div class="cookie-modal-actions">
-      <button class="cookie-btn-reject" id="cookie-reject" type="button">Nur notwendige</button>
-      <button class="cookie-btn-accept" id="cookie-accept" type="button">Akzeptieren</button>
+    <div class="cookie-banner-actions">
+      <button class="cta-btn ghost" id="cookie-reject" type="button">Nur notwendige</button>
+      <button class="cta-btn" id="cookie-accept" type="button">Akzeptieren</button>
     </div>
   </div>
 </div>
@@ -1477,8 +1474,8 @@ window.__loadMetaPixel = function(){
   function setConsent(v){
     try { localStorage.setItem(KEY, v); } catch(e){}
   }
-  function showBanner(){ if (banner) banner.hidden = false; document.body.classList.add('cookie-modal-open'); }
-  function hideBanner(){ if (banner) banner.hidden = true; document.body.classList.remove('cookie-modal-open'); }
+  function showBanner(){ if (banner) banner.hidden = false; }
+  function hideBanner(){ if (banner) banner.hidden = true; }
 
   var priorConsent = getConsent();
   if (priorConsent === 'accepted') {
