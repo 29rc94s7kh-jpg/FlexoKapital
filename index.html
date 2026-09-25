@@ -59,9 +59,9 @@ window.__loadMetaPixel = function(){
     --shadow:0 30px 70px -25px rgba(0,0,0,0.6);
   }
   *{box-sizing:border-box;}
-  html{scroll-behavior:smooth;overflow-x:hidden;max-width:100%;}
+  html{scroll-behavior:smooth;overflow-x:clip;max-width:100%;}
   body{
-    margin:0;background:var(--bg);color:var(--text);
+    margin:0;background:var(--bg);color:var(--text);overflow-x:clip;max-width:100%;position:relative;
     font-family:'Plus Jakarta Sans',system-ui,sans-serif;
     -webkit-font-smoothing:antialiased;
     transition:background .5s ease,color .5s ease;
