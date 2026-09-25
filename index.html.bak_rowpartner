@@ -246,8 +246,7 @@ window.__loadMetaPixel = function(){
   .detail-point p{font-size:13.5px;line-height:1.55;color:var(--text-dim);margin:0;}
   .detail-note{font-size:13px;line-height:1.5;font-style:italic;color:var(--muted);margin:0;}
   .pillars-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;}
-  .services-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;}
-  .services-grid .card.row-partner-open{align-self:start;}
+  .services-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;align-items:start;}
 
   /* ---- comparison table ---- */
   .compare-wrap{overflow-x:auto;border-radius:16px;border:1px solid var(--border);background:var(--surface);-webkit-overflow-scrolling:touch;}
@@ -1577,17 +1576,10 @@ window.__loadMetaPixel = function(){
 </script>
 <script>
 (function(){
-  var cards = Array.prototype.slice.call(document.querySelectorAll('.services-grid .card.expandable'));
-  cards.forEach(function(card, i){
-    function rowPartner(){
-      var partnerIndex = (i % 2 === 0) ? i + 1 : i - 1;
-      return cards[partnerIndex] || null;
-    }
+  document.querySelectorAll('.card.expandable').forEach(function(card){
     function toggleCard(){
       var open = card.classList.toggle('is-open');
       card.setAttribute('aria-expanded', open ? 'true' : 'false');
-      var partner = rowPartner();
-      if (partner) partner.classList.toggle('row-partner-open', open);
     }
     card.addEventListener('click', toggleCard);
     card.addEventListener('keydown', function(e){
