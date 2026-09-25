@@ -247,7 +247,7 @@ window.__loadMetaPixel = function(){
   .detail-note{font-size:13px;line-height:1.5;font-style:italic;color:var(--muted);margin:0;}
 
   .pillars-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;}
-  .services-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;align-items:start;}
+  .services-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;}
 
   /* ---- comparison table ---- */
   .compare-wrap{overflow-x:auto;border-radius:16px;border:1px solid var(--border);background:var(--surface);-webkit-overflow-scrolling:touch;}
