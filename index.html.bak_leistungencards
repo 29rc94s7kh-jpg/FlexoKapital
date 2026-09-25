@@ -222,30 +222,6 @@ window.__loadMetaPixel = function(){
   .card h3{font-size:17px;margin-bottom:9px;}
   .card p{font-size:14.5px;color:var(--text-dim);margin:0;}
 
-  .card.expandable{cursor:pointer;position:relative;padding-right:52px;}
-  .card.expandable:focus-visible{outline:2px solid var(--accent);outline-offset:3px;}
-  .card-toggle{
-    position:absolute;top:24px;right:22px;width:28px;height:28px;border-radius:8px;
-    background:var(--surface-2);border:1px solid var(--border-strong);
-    display:flex;align-items:center;justify-content:center;color:var(--text-dim);
-    transition:transform .25s ease,background .2s ease,color .2s ease;flex-shrink:0;
-  }
-  .card-toggle svg{width:14px;height:14px;}
-  .card.expandable:hover .card-toggle{color:var(--accent);border-color:var(--accent);}
-  .card.expandable.is-open .card-toggle{transform:rotate(45deg);background:var(--accent-soft);color:var(--accent);border-color:var(--accent);}
-  .card-detail{
-    display:grid;grid-template-rows:0fr;opacity:0;transition:grid-template-rows .3s ease,opacity .25s ease,margin-top .3s ease;
-  }
-  .card.expandable.is-open .card-detail{grid-template-rows:1fr;opacity:1;margin-top:8px;}
-  .card-detail-inner{overflow:hidden;}
-  .card-detail-inner{padding-top:10px;border-top:1px solid var(--border);}
-  .card-detail-inner .detail-lead{font-size:14.5px;font-weight:700;color:var(--text);margin:0 0 20px;line-height:1.4;}
-  .detail-points{display:flex;flex-direction:column;gap:10px;margin-bottom:12px;}
-  .detail-point{padding-left:14px;border-left:2px solid var(--accent-soft);}
-  .detail-point .dp-label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--accent);margin-bottom:3px;}
-  .detail-point p{font-size:13.5px;line-height:1.55;color:var(--text-dim);margin:0;}
-  .detail-note{font-size:13px;line-height:1.5;font-style:italic;color:var(--muted);margin:0;}
-
   .pillars-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;}
   .services-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;}
 
@@ -655,65 +631,25 @@ window.__loadMetaPixel = function(){
         <p>Jedes Gespräch startet mit einer ehrlichen Bestandsaufnahme, nicht mit einem vorgefertigten Vorschlag.</p>
       </div>
       <div class="services-grid">
-        <div class="card expandable reveal" tabindex="0" role="button" aria-expanded="false">
-          <div class="card-toggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+        <div class="card reveal">
           <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg></div>
           <h3>Vermögensaufbau mit Fonds &amp; ETFs</h3>
           <p>Statt auf eine einzelne Aktie zu setzen: breit gestreute Fonds und ETFs, passend zu deinem Risiko-Profil und Zeithorizont — verständlich erklärt, nicht nur empfohlen.</p>
-          <div class="card-detail"><div class="card-detail-inner">
-            <p class="detail-lead">Kein Bauchgefühl, sondern eine nachvollziehbare Auswahl.</p>
-            <div class="detail-points">
-              <div class="detail-point"><span class="dp-label">Streuung</span><p>Nicht eine Aktie, sondern viele Unternehmen, Branchen und Regionen gleichzeitig.</p></div>
-              <div class="detail-point"><span class="dp-label">Auswahlkriterien</span><p>Kosten, Streuung, dein Risiko-Profil und dein Zeithorizont — nicht die Provisionshöhe.</p></div>
-              <div class="detail-point"><span class="dp-label">Steuerbegünstigt</span><p>Wo es passt, läuft der Vermögensaufbau über einen entsprechenden Anlage-Mantel.</p></div>
-            </div>
-            <p class="detail-note">Ergebnis: eine Struktur, die zu dir passt — nicht ein Produkt, das gerade im Trend liegt.</p>
-          </div></div>
         </div>
-        <div class="card expandable reveal" tabindex="0" role="button" aria-expanded="false">
-          <div class="card-toggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+        <div class="card reveal">
           <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg></div>
           <h3>Bedarfsanalyse &amp; Erstgespräch</h3>
           <p>Ein unverbindliches Gespräch, in dem wir gemeinsam klären, was zu dir passt — bevor überhaupt über konkrete Produkte gesprochen wird.</p>
-          <div class="card-detail"><div class="card-detail-inner">
-            <p class="detail-lead">15 Minuten, die zeigen, ob's überhaupt passt.</p>
-            <div class="detail-points">
-              <div class="detail-point"><span class="dp-label">Ausgangslage</span><p>Wo du finanziell stehst, was du schon hast, was dir noch fehlt.</p></div>
-              <div class="detail-point"><span class="dp-label">Ziele &amp; Zeithorizont</span><p>Wofür du eigentlich sparst — und bis wann.</p></div>
-              <div class="detail-point"><span class="dp-label">Ergebnis</span><p>Eine ehrliche Einschätzung, keine Produktentscheidung im ersten Gespräch.</p></div>
-            </div>
-            <p class="detail-note">Kostenlos, unverbindlich, ohne Verkaufsdruck.</p>
-          </div></div>
         </div>
-        <div class="card expandable reveal" tabindex="0" role="button" aria-expanded="false">
-          <div class="card-toggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+        <div class="card reveal">
           <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/><circle cx="12" cy="12" r="9"/></svg></div>
           <h3>Steuer- &amp; Kostenoptimierung</h3>
           <p>KESt, laufende Kosten, Gebührenstruktur — wir zeigen transparent, was deine Geldanlage tatsächlich kostet und wo sich das optimieren lässt.</p>
-          <div class="card-detail"><div class="card-detail-inner">
-            <p class="detail-lead">Die meisten wissen nicht, was ihre Geldanlage wirklich kostet.</p>
-            <div class="detail-points">
-              <div class="detail-point"><span class="dp-label">Laufende Kosten</span><p>Verwaltungsgebühren, die Jahr für Jahr an der Rendite nagen.</p></div>
-              <div class="detail-point"><span class="dp-label">Einmalkosten</span><p>Ausgabeaufschläge und ähnliche Gebühren beim Einstieg.</p></div>
-              <div class="detail-point"><span class="dp-label">KESt-Effekte</span><p>Wie sich steuerliche Rahmenbedingungen auf dein Ergebnis auswirken.</p></div>
-            </div>
-            <p class="detail-note">Kein Rendite-Versprechen — aber volle Transparenz über das, was du selbst beeinflussen kannst.</p>
-          </div></div>
         </div>
-        <div class="card expandable reveal" tabindex="0" role="button" aria-expanded="false">
-          <div class="card-toggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+        <div class="card reveal">
           <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg></div>
           <h3>Laufende Begleitung</h3>
           <p>Steuerbegünstigter Vermögensaufbau ist kein Einmal-Termin. Wir bleiben dran, wenn sich deine Situation oder der Markt verändert.</p>
-          <div class="card-detail"><div class="card-detail-inner">
-            <p class="detail-lead">Nach dem Start bist du nicht allein.</p>
-            <div class="detail-points">
-              <div class="detail-point"><span class="dp-label">Review</span><p>Ein regelmäßiger Check, ob deine Strategie noch zu deiner Situation passt.</p></div>
-              <div class="detail-point"><span class="dp-label">Ansprechpartner</span><p>Bei spürbaren Veränderungen — privat oder am Markt — meldest du dich, wir schauen drauf.</p></div>
-              <div class="detail-point"><span class="dp-label">Kein Autopilot</span><p>Keine automatisierten Rundmails, echter Kontakt bei Bedarf.</p></div>
-            </div>
-            <p class="detail-note">Steuerbegünstigter Vermögensaufbau ist ein Prozess, kein Einmal-Termin.</p>
-          </div></div>
         </div>
       </div>
     </div>
@@ -1572,23 +1508,6 @@ window.__loadMetaPixel = function(){
     hideBanner();
     var target = document.querySelector('.footer-legal [data-nav="datenschutz"]');
     if (target) target.click();
-  });
-})();
-</script>
-<script>
-(function(){
-  document.querySelectorAll('.card.expandable').forEach(function(card){
-    function toggleCard(){
-      var open = card.classList.toggle('is-open');
-      card.setAttribute('aria-expanded', open ? 'true' : 'false');
-    }
-    card.addEventListener('click', toggleCard);
-    card.addEventListener('keydown', function(e){
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        toggleCard();
-      }
-    });
   });
 })();
 </script>
