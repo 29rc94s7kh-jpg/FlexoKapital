@@ -40,7 +40,7 @@ body.cookie-modal-open{overflow:hidden;}
   [hidden]{display:none!important;}
   a{color:inherit;}
   img,svg{max-width:100%;}
-  .wrap{max-width:1320px;margin:0 auto;padding:0 24px;}
+  .wrap{max-width:1240px;margin:0 auto;padding:0 24px;}
   h1,h2,h3{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;margin:0;text-wrap:balance;letter-spacing:-0.01em;}
   p{line-height:1.65;}
 
