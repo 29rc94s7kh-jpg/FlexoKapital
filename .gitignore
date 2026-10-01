@@ -1,9 +1,6 @@
 # Lokale Sicherungskopien, nicht veröffentlichen
+backups/
 *.bak_*
-_to_delete/
 
 # macOS
 .DS_Store
-
-# git lock leftovers
-.git/index.lock.stale*
