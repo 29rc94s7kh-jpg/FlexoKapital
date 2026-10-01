@@ -138,26 +138,21 @@
 
     <div class="wrap" style="padding-top:64px;padding-bottom:64px;">
       <div class="section-head reveal">
-        <div class="eyebrow">Fakten, keine Bauchentscheidung</div>
-        <h2>Was dafür spricht, früh zu investieren.</h2>
+        <div class="eyebrow">Häufige Denkblockaden</div>
+        <h2>Was uns Kund:innen am öftesten sagen.</h2>
       </div>
-      <div class="reasons-grid">
-        <div class="card reveal">
-          <div class="reason-kicker">Pensionslücke</div>
-          <div class="num">180.000 €</div>
-          <div class="lbl">geschätzte Lücke über die gesamte Pensionszeit</div>
-          <p class="reason-body">Im Schnitt fehlen Österreicher:innen rund 770 € im Monat zur gesetzlichen Pension. Hochgerechnet auf 20 Jahre Pensionszeit sind das über 180.000 €, die man sich selbst aufbauen muss, wenn man sie nicht will.</p>
-          <p class="reason-footnote">Basierend auf einer repräsentativen Umfrage (Spectra/Valida, 2019), hochgerechnet auf 20 Jahre Pensionsbezug.</p>
+      <div>
+        <div class="myth-row reveal">
+          <div class="myth-tag">Mythos</div>
+          <div><h4>"Der Kapitalmarkt ist mir zu unsicher."</h4><p>Kurzfristig schwankt er, ja. Über längere Zeiträume betrachtet sieht das Bild meist deutlich ruhiger aus — entscheidend ist der Zeithorizont, nicht das Bauchgefühl im Moment.</p></div>
         </div>
-        <div class="card reveal">
-          <div class="reason-kicker">Inflation</div>
-          <div class="num">-60 %</div>
-          <div class="lbl">Kaufkraftverlust in 30 Jahren bei 3 % Inflation</div>
-          <p class="reason-body">Bei durchschnittlich 3 % Inflation pro Jahr ist dein Geld in 30 Jahren nur noch rund 40 % von dem wert, was es heute ist. 10.000 € heute haben dann real nur noch die Kaufkraft von etwa 4.100 €.</p>
+        <div class="myth-row reveal">
+          <div class="myth-tag">Mythos</div>
+          <div><h4>"Mit dem, was ich hab, bewege ich eh nichts."</h4><p>Es geht nicht um die Höhe, sondern um Regelmäßigkeit — kleinere Beträge, die kontinuierlich angelegt werden, profitieren über die Zeit genauso vom Zinseszinseffekt. Was für dich sinnvoll ist, schauen wir uns im Erstgespräch gemeinsam an.</p></div>
         </div>
-        <div class="card reveal">
-          <div class="reason-kicker">Zinseszinseffekt</div>
-          <p class="reason-body">Angelegtes Geld wächst mit der Zeit immer schneller, das ist der Zinseszinseffekt. Deshalb zählt vor allem, wie früh du anfängst. Der Betrag, mit dem du startest, spielt eine kleinere Rolle. Wer zehn Jahre früher beginnt, kann mit deutlich weniger Kapital am Ende auf einem ähnlichen Niveau landen wie jemand, der später mit mehr einsteigt.</p>
+        <div class="myth-row reveal">
+          <div class="myth-tag">Mythos</div>
+          <div><h4>"Ich muss mich erst auskennen, bevor ich einsteige."</h4><p>Musst du nicht. Wir schauen im Erstgespräch gemeinsam drauf — verständlich erklärt, ohne Vorwissen vorauszusetzen.</p></div>
         </div>
       </div>
     </div>
