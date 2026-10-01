@@ -236,7 +236,7 @@ body.cookie-modal-open{overflow:hidden;}
   /* ---- comparison table ---- */
   .compare-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
   .cmp-head,.cmp-body{display:grid;column-gap:16px;min-width:820px;}
-  .cmp-head{margin-bottom:16px;padding:0 17px;}
+  .cmp-head{margin-bottom:16px;}
   .cmp-head-cell{
     background:var(--surface-2);border-radius:14px;padding:18px 14px 16px;text-align:center;
   }

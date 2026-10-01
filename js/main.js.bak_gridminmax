@@ -241,7 +241,7 @@
     var head = document.getElementById('compareHead');
     var body = document.getElementById('compareBody');
     if(!head || !body) return;
-    var gridCols = 'grid-template-columns:minmax(0,1.6fr) repeat('+compareCols.length+',minmax(0,1fr))';
+    var gridCols = 'grid-template-columns:1.6fr repeat('+compareCols.length+',1fr)';
     head.setAttribute('style', gridCols);
     head.innerHTML = '<div class="cmp-head-cell cmp-label-head"></div>' + compareCols.map(function(c){
       var badge = c.badge ? '<span class="compare-badge'+(c.highlight ? ' is-accent' : '')+'">'+c.badge+'</span>' : '';
