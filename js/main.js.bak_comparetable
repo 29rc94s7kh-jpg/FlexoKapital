@@ -220,16 +220,19 @@
   // ---- comparison table (Startseite): flexo.kapital vs. andere Wege ----
   var compareCols = [
     {label:'flexo.kapital', badge:'Direkt und unabhängig', highlight:true},
-    {label:'Bank'},
+    {label:'Bankfiliale'},
     {label:'Fondsgebundene Lebensversicherung'},
-    {label:'Onlinedepot'}
+    {label:'Online-Broker / Robo-Advisor'},
+    {label:'Klassischer Vermittler', badge:'Einmalabschluss'}
   ];
   var compareRows = [
-    {feature:'Flexibilität', vals:['yes','yes','mid','yes']},
-    {feature:'KESt-befreit', vals:['yes','no','yes','no']},
-    {feature:'Persönliche Beratung', vals:['yes','mid','mid','no']},
-    {feature:'Laufende Begleitung', vals:['yes','mid','no','no']},
-    {feature:'Geringe laufende Kosten', vals:['yes','mid','no','yes']}
+    {feature:'Persönlicher, unabhängiger Ansprechpartner', vals:['yes','mid','mid','no','mid']},
+    {feature:'Einfach, verständlich und kompetent erklärt', vals:['yes','mid','no','no','mid']},
+    {feature:'Zugang zu KESt-freier Vorsorge', vals:['yes','no','yes','no','mid']},
+    {feature:'Kein Verkaufsdruck', vals:['yes','mid','no','yes','no']},
+    {feature:'Keine hohen Mindestanlagen', vals:['yes','mid','mid','yes','mid']},
+    {feature:'Laufende Begleitung statt Einmal-Termin', vals:['yes','mid','no','no','no']},
+    {feature:'Kostenloses, unverbindliches Erstgespräch', vals:['yes','mid','mid','no','mid']}
   ];
   var cmpIcons = {
     yes:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>',
