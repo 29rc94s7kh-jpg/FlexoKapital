@@ -241,23 +241,15 @@
     var head = document.getElementById('compareHead');
     var body = document.getElementById('compareBody');
     if(!head || !body) return;
-    var gridCols = 'grid-template-columns:1.6fr repeat('+compareCols.length+',1fr)';
-    head.setAttribute('style', gridCols);
-    head.innerHTML = '<div class="cmp-head-cell cmp-label-head"></div>' + compareCols.map(function(c){
+    head.innerHTML = '<th></th>' + compareCols.map(function(c){
       var badge = c.badge ? '<span class="compare-badge'+(c.highlight ? ' is-accent' : '')+'">'+c.badge+'</span>' : '';
-      return '<div class="cmp-head-cell'+(c.highlight ? ' is-highlight' : '')+'"><span class="compare-col-title">'+c.label+'</span>'+badge+'</div>';
+      return '<th'+(c.highlight ? ' class="is-highlight"' : '')+'><span class="compare-col-title">'+c.label+'</span>'+badge+'</th>';
     }).join('');
-    body.setAttribute('style', gridCols);
-    var n = compareRows.length;
-    body.innerHTML = compareRows.map(function(row, ri){
-      var edge = (ri === 0 ? ' is-first' : '') + (ri === n - 1 ? ' is-last' : '');
-      var label = '<div class="cmp-row-label'+edge+'">'+row.feature+'</div>';
-      var cells = row.vals.map(function(v, ci){
-        var isHi = compareCols[ci] && compareCols[ci].highlight;
-        var cls = 'cmp-cell'+(isHi ? ' is-highlight' : '')+edge;
-        return '<div class="'+cls+'"><span class="cmp-icon cmp-'+v+'" title="'+cmpTitle[v]+'">'+cmpIcons[v]+'</span></div>';
+    body.innerHTML = compareRows.map(function(row, i){
+      var cells = row.vals.map(function(v){
+        return '<td><span class="cmp-icon cmp-'+v+'" title="'+cmpTitle[v]+'">'+cmpIcons[v]+'</span></td>';
       }).join('');
-      return label + cells;
+      return '<tr'+(i % 2 === 1 ? ' class="cmp-row-alt"' : '')+'><td>'+row.feature+'</td>'+cells+'</tr>';
     }).join('');
   }
   renderCompareTable();
