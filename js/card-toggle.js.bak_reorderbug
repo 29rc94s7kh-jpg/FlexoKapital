@@ -7,35 +7,24 @@
       var cols = getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean);
       return cols.length || 1;
     }
-    function rowPartnerIndexes(i, cols){
+    function rowPartners(i){
+      var cols = columnCount();
       if (cols <= 1) return [];
       var rowStart = Math.floor(i / cols) * cols;
       var rowEnd = Math.min(rowStart + cols, cards.length);
       var partners = [];
       for (var j = rowStart; j < rowEnd; j++){
-        if (j !== i) partners.push(j);
+        if (j !== i) partners.push(cards[j]);
       }
       return partners;
     }
-    function refresh(){
-      var cols = columnCount();
-      cards.forEach(function(card, i){
-        if (card.classList.contains('is-open')) {
-          card.classList.remove('row-partner-open');
-          return;
-        }
-        var partners = rowPartnerIndexes(i, cols);
-        var anyPartnerOpen = partners.some(function(j){
-          return cards[j].classList.contains('is-open');
-        });
-        card.classList.toggle('row-partner-open', anyPartnerOpen);
-      });
-    }
-    cards.forEach(function(card){
+    cards.forEach(function(card, i){
       function toggleCard(){
         var open = card.classList.toggle('is-open');
         card.setAttribute('aria-expanded', open ? 'true' : 'false');
-        refresh();
+        rowPartners(i).forEach(function(partner){
+          partner.classList.toggle('row-partner-open', open);
+        });
       }
       card.addEventListener('click', toggleCard);
       card.addEventListener('keydown', function(e){
@@ -45,6 +34,5 @@
         }
       });
     });
-    refresh();
   });
 })();
