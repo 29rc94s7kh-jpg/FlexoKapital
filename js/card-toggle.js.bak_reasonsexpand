@@ -1,5 +1,5 @@
 (function(){
-  var grids = Array.prototype.slice.call(document.querySelectorAll('.services-grid, .pillars-grid, .reasons-grid'));
+  var grids = Array.prototype.slice.call(document.querySelectorAll('.services-grid, .pillars-grid'));
   grids.forEach(function(grid){
     var cards = Array.prototype.slice.call(grid.querySelectorAll('.card.expandable'));
     if (!cards.length) return;

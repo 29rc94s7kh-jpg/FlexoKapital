@@ -142,34 +142,22 @@
         <h2>Was dafür spricht, früh zu investieren.</h2>
       </div>
       <div class="reasons-grid">
-        <div class="card expandable reveal" tabindex="0" role="button" aria-expanded="false">
-          <div class="card-toggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+        <div class="card reveal">
           <div class="reason-kicker">Pensionslücke</div>
           <div class="num">180.000 €</div>
           <div class="lbl">geschätzte Lücke über die gesamte Pensionszeit</div>
-          <div class="card-detail"><div class="card-detail-inner">
-            <p class="reason-body">Im Schnitt fehlen Österreicher:innen rund 770 € im Monat zur gesetzlichen Pension. Hochgerechnet auf 20 Jahre Pensionszeit sind das über 180.000 €, die man sich selbst aufbauen muss, wenn man sie nicht will.</p>
-            <p class="reason-footnote">Basierend auf einer repräsentativen Umfrage (Spectra/Valida, 2019), hochgerechnet auf 20 Jahre Pensionsbezug.</p>
-          </div></div>
+          <p class="reason-body">Im Schnitt fehlen Österreicher:innen rund 770 € im Monat zur gesetzlichen Pension. Hochgerechnet auf 20 Jahre Pensionszeit sind das über 180.000 €, die man sich selbst aufbauen muss, wenn man sie nicht will.</p>
+          <p class="reason-footnote">Basierend auf einer repräsentativen Umfrage (Spectra/Valida, 2019), hochgerechnet auf 20 Jahre Pensionsbezug.</p>
         </div>
-        <div class="card expandable reveal" tabindex="0" role="button" aria-expanded="false">
-          <div class="card-toggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+        <div class="card reveal">
           <div class="reason-kicker">Inflation</div>
           <div class="num">-60 %</div>
           <div class="lbl">Kaufkraftverlust in 30 Jahren bei 3 % Inflation</div>
-          <div class="card-detail"><div class="card-detail-inner">
-            <p class="reason-body">Bei durchschnittlich 3 % Inflation pro Jahr ist dein Geld in 30 Jahren nur noch rund 40 % von dem wert, was es heute ist. 10.000 € heute haben dann real nur noch die Kaufkraft von etwa 4.100 €.</p>
-          </div></div>
+          <p class="reason-body">Bei durchschnittlich 3 % Inflation pro Jahr ist dein Geld in 30 Jahren nur noch rund 40 % von dem wert, was es heute ist. 10.000 € heute haben dann real nur noch die Kaufkraft von etwa 4.100 €.</p>
         </div>
-        <div class="card expandable reveal" tabindex="0" role="button" aria-expanded="false">
-          <div class="card-toggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+        <div class="card reveal">
           <div class="reason-kicker">Zinseszinseffekt</div>
-          <div class="num">6 % p.a.</div>
-          <div class="lbl">durchschnittliche Rendite breit gestreuter Aktienmärkte, langfristig</div>
-          <div class="card-detail"><div class="card-detail-inner">
-            <p class="reason-body">Angelegtes Geld wächst mit der Zeit immer schneller, das ist der Zinseszinseffekt. Deshalb zählt vor allem, wie früh du anfängst. Der Betrag, mit dem du startest, spielt eine kleinere Rolle. Wer zehn Jahre früher beginnt, kann mit deutlich weniger Kapital am Ende auf einem ähnlichen Niveau landen wie jemand, der später mit mehr einsteigt.</p>
-            <p class="reason-footnote">Historischer Durchschnitt breiter Aktienindizes (z.B. MSCI World), keine Garantie für künftige Erträge.</p>
-          </div></div>
+          <p class="reason-body">Angelegtes Geld wächst mit der Zeit immer schneller, das ist der Zinseszinseffekt. Deshalb zählt vor allem, wie früh du anfängst. Der Betrag, mit dem du startest, spielt eine kleinere Rolle. Wer zehn Jahre früher beginnt, kann mit deutlich weniger Kapital am Ende auf einem ähnlichen Niveau landen wie jemand, der später mit mehr einsteigt.</p>
         </div>
       </div>
     </div>
