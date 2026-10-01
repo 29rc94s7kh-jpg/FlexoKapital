@@ -219,7 +219,6 @@ body.cookie-modal-open{overflow:hidden;}
   .pillars-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;}
   .services-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;}
   .services-grid .card.row-partner-open{align-self:start;}
-  .pillars-grid .card.row-partner-open{align-self:start;}
 
   /* ---- comparison table ---- */
   .compare-wrap{overflow-x:auto;border-radius:16px;border:1px solid var(--border);background:var(--surface);-webkit-overflow-scrolling:touch;}
