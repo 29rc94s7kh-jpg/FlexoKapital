@@ -410,6 +410,10 @@ body.cookie-modal-open{overflow:hidden;}
   .funnel-opt::after{content:'';width:9px;height:9px;border-radius:50%;border:1.5px solid var(--border-strong);flex:none;transition:background .15s,border-color .15s,transform .15s;}
   .funnel-opt.selected{border-color:var(--accent);background:var(--accent-soft);}
   .funnel-opt.selected::after{background:var(--accent);border-color:var(--accent);transform:scale(1.15);}
+  .funnel-options.is-multi .funnel-opt::after{border-radius:3px;}
+  .funnel-multi-next{margin-top:24px;}
+  .funnel-multi-next:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none;}
+  .funnel-multi-next:disabled::after{display:none;}
 
   .funnel-form{display:flex;flex-direction:column;}
 

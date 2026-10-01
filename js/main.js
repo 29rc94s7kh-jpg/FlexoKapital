@@ -162,7 +162,6 @@
   var funnelQuestions = [
     {field:'ziel', q:'Was ist dir bei deiner Geldanlage am wichtigsten?', options:[
       ['vermoegen','Vermögen aufbauen'],
-      ['arbeiten','Geld arbeiten lassen statt am Sparbuch'],
       ['steuern','Steuern sparen — KESt-befreit'],
       ['starten','Einfach mal anfangen']
     ]},
@@ -179,15 +178,18 @@
       ['50k+','mehr als 50.000 €']
     ]},
     {field:'zeithorizont', q:'Was ist dein Zeithorizont?', options:[]}, // rendered dynamically, see renderStep4()
-    {field:'bestehend', q:'Hast du aktuell schon Geld investiert (Fonds, ETFs, Aktien)?', options:[
-      ['ja','Ja'],
-      ['nur_sparbuch','Nein, nur Sparbuch'],
-      ['nichts','Nein, noch gar nichts']
-    ]},
     {field:'erfahrung', q:'Wie viel Erfahrung hast du mit Geldanlage?', options:[
       ['einsteiger','Einsteiger'],
       ['etwas','Etwas Erfahrung'],
       ['erfahren','Erfahren']
+    ]},
+    // only shown for "Etwas Erfahrung" / "Erfahren" (see funnelSkipsExperienceStep), multiple answers allowed
+    {field:'erfahrung_mit', q:'Womit hast du schon Erfahrung?', multi:true, options:[
+      ['etf','ETFs / Fonds'],
+      ['aktien','Einzelaktien'],
+      ['flv','Fondsgebundene Lebensversicherung'],
+      ['krypto','Krypto'],
+      ['anderes','Anderes (z. B. Anleihen, Gold, Bausparer)']
     ]},
     {field:'entscheidung', q:'Entscheidest du allein oder gemeinsam?', options:[
       ['allein','Allein'],
@@ -202,6 +204,40 @@
   var funnelState = {step:1, answers:{}};
   var funnelTotal = 10;
 
+  // Step 6 ("Womit hast du schon Erfahrung?") is skipped for beginners,
+  // so their path has 9 steps instead of 10.
+  var FUNNEL_EXPERIENCE_STEP = 6;
+  function funnelSkipsExperienceStep(){
+    var e = funnelState.answers.erfahrung;
+    return !!e && e.value === 'einsteiger';
+  }
+  function funnelNextStep(n){
+    var next = n + 1;
+    if(next === FUNNEL_EXPERIENCE_STEP && funnelSkipsExperienceStep()) next++;
+    return next;
+  }
+  function funnelPrevStep(n){
+    var prev = n - 1;
+    if(prev === FUNNEL_EXPERIENCE_STEP && funnelSkipsExperienceStep()) prev--;
+    return prev;
+  }
+  function funnelDisplayTotal(){ return funnelSkipsExperienceStep() ? funnelTotal - 1 : funnelTotal; }
+  function funnelDisplayStep(n){ return (funnelSkipsExperienceStep() && n > FUNNEL_EXPERIENCE_STEP) ? n - 1 : n; }
+  function updateMultiAnswer(group){
+    var sel = Array.prototype.slice.call(group.querySelectorAll('.funnel-opt.selected'));
+    if(sel.length){
+      funnelState.answers[group.dataset.field] = {
+        value: sel.map(function(b){ return b.dataset.value; }).join(','),
+        label: sel.map(function(b){ return b.dataset.label; }).join(', ')
+      };
+    } else {
+      delete funnelState.answers[group.dataset.field];
+    }
+    var stepEl = group.closest('.funnel-step');
+    var nextBtn = stepEl && stepEl.querySelector('.funnel-multi-next');
+    if(nextBtn) nextBtn.disabled = sel.length === 0;
+  }
+
   function renderFunnelQuestions(){
     funnelQuestions.forEach(function(q, i){
       if(q.field === 'groessenordnung' || q.field === 'zeithorizont') return; // rendered dynamically
@@ -210,9 +246,12 @@
       var optsHtml = q.options.map(function(opt){
         return '<button type="button" class="funnel-opt" data-value="'+opt[0]+'" data-label="'+opt[1]+'">'+opt[1]+'</button>';
       }).join('');
+      var isMulti = !!q.multi;
       stepEl.innerHTML =
-        '<div class="funnel-q"><span class="funnel-eyebrow">0'+(i+1)+' / '+funnelTotal+'</span><h2>'+q.q+'</h2></div>' +
-        '<div class="funnel-options" data-field="'+q.field+'">'+optsHtml+'</div>';
+        '<div class="funnel-q"><span class="funnel-eyebrow">0'+(i+1)+' / '+funnelTotal+'</span><h2>'+q.q+'</h2>' +
+          (isMulti ? '<p>Mehrfachauswahl möglich.</p>' : '') + '</div>' +
+        '<div class="funnel-options'+(isMulti ? ' is-multi' : '')+'" data-field="'+q.field+'"'+(isMulti ? ' data-multi="1"' : '')+'>'+optsHtml+'</div>' +
+        (isMulti ? '<button type="button" class="cta-btn funnel-multi-next" disabled>Weiter</button>' : '');
     });
   }
   renderFunnelQuestions();
@@ -334,8 +373,9 @@
     var fill = document.getElementById('funnelFill');
     var label = document.getElementById('funnelLabel');
     if(!fill || !label) return;
-    fill.style.width = Math.round((funnelState.step/funnelTotal)*100) + '%';
-    label.textContent = 'Schritt '+funnelState.step+' von '+funnelTotal;
+    var shown = funnelDisplayStep(funnelState.step), total = funnelDisplayTotal();
+    fill.style.width = Math.round((shown/total)*100) + '%';
+    label.textContent = 'Schritt '+shown+' von '+total;
   }
 
   function funnelGoTo(n){
@@ -347,6 +387,11 @@
     if(back) back.hidden = (n === 1);
     if(n === 3 && !target.innerHTML.trim()) renderStep3();
     if(n === 4 && !target.innerHTML.trim()) renderStep4();
+    var eyebrowEl = target && target.querySelector('.funnel-eyebrow');
+    if(eyebrowEl){
+      var shownStep = funnelDisplayStep(n);
+      eyebrowEl.textContent = (shownStep < 10 ? '0' : '') + shownStep + ' / ' + funnelDisplayTotal();
+    }
     updateFunnelProgress();
   }
 
@@ -354,6 +399,7 @@
     funnelState.step = 1;
     funnelState.answers = {};
     document.querySelectorAll('.funnel-opt.selected').forEach(function(b){ b.classList.remove('selected'); });
+    document.querySelectorAll('.funnel-multi-next').forEach(function(b){ b.disabled = true; });
     var form = document.getElementById('funnelContactForm');
     if(form) form.reset();
     funnelGoTo(1);
@@ -372,9 +418,19 @@
   var funnelStage = document.getElementById('funnelStage');
   if(funnelStage){
     funnelStage.addEventListener('click', function(e){
+      var multiNext = e.target.closest && e.target.closest('.funnel-multi-next');
+      if(multiNext){
+        if(!multiNext.disabled) funnelGoTo(funnelNextStep(funnelState.step));
+        return;
+      }
       var btn = e.target.closest && e.target.closest('.funnel-opt');
       if(!btn) return;
       var group = btn.closest('.funnel-options');
+      if(group.dataset.multi){
+        btn.classList.toggle('selected');
+        updateMultiAnswer(group);
+        return;
+      }
       group.querySelectorAll('.funnel-opt').forEach(function(b){ b.classList.remove('selected'); });
       btn.classList.add('selected');
       funnelState.answers[group.dataset.field] = {value:btn.dataset.value, label:btn.dataset.label};
@@ -390,6 +446,15 @@
         renderStep4();
       }
 
+      // beginners skip "Womit hast du schon Erfahrung?", so drop any earlier answer to it
+      if(group.dataset.field === 'erfahrung' && btn.dataset.value === 'einsteiger'){
+        var expGroup = document.querySelector('.funnel-options[data-field="erfahrung_mit"]');
+        if(expGroup){
+          expGroup.querySelectorAll('.funnel-opt.selected').forEach(function(b){ b.classList.remove('selected'); });
+          updateMultiAnswer(expGroup);
+        }
+      }
+
       // a step can hold more than one option group (e.g. "beides" asks for
       // both a lump sum and a monthly rate) — only advance once every group
       // on the current step has an answer.
@@ -400,7 +465,7 @@
       });
       if(!allAnswered) return;
 
-      var next = funnelState.step + 1;
+      var next = funnelNextStep(funnelState.step);
       if(prefersReduced){ funnelGoTo(next); }
       else { setTimeout(function(){ funnelGoTo(next); }, 320); }
     });
@@ -408,7 +473,7 @@
   var funnelBackBtn = document.getElementById('funnelBack');
   if(funnelBackBtn){
     funnelBackBtn.addEventListener('click', function(){
-      if(funnelState.step > 1) funnelGoTo(funnelState.step - 1);
+      if(funnelState.step > 1) funnelGoTo(funnelPrevStep(funnelState.step));
     });
   }
   var funnelContactForm = document.getElementById('funnelContactForm');

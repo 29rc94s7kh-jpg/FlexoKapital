@@ -117,7 +117,7 @@
     return out;
   }
 
-  var ANSWER_FIELD_ORDER = ['ziel', 'art', 'einmalbetrag', 'sparrate', 'groessenordnung', 'zeithorizont', 'bestehend', 'erfahrung', 'entscheidung', 'timing'];
+  var ANSWER_FIELD_ORDER = ['ziel', 'art', 'einmalbetrag', 'sparrate', 'groessenordnung', 'zeithorizont', 'erfahrung', 'erfahrung_mit', 'bestehend', 'entscheidung', 'timing']; // 'bestehend' only on older leads
 
   function buildDetailHtml(lead, viewingTrashView){
     var parts = [];
