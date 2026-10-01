@@ -4,3 +4,8 @@ backups/
 
 # macOS
 .DS_Store
+
+# Lokale Agent-/Skill-Dateien (z. B. von npx skills add)
+.claude/
+.agents/
+skills/
