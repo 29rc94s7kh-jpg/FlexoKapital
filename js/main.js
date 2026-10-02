@@ -206,6 +206,14 @@
 
   // Step 6 ("Womit hast du schon Erfahrung?") is skipped for beginners,
   // so their path has 9 steps instead of 10.
+  // Meta-Pixel custom events to see where people drop off in the funnel
+  // (only fire if the visitor accepted cookies, i.e. fbq exists).
+  var funnelTracked = {};
+  function trackFunnelOnce(name){
+    if(funnelTracked[name]) return;
+    funnelTracked[name] = true;
+    if(typeof fbq === 'function') fbq('trackCustom', name);
+  }
   var FUNNEL_EXPERIENCE_STEP = 6;
   function funnelSkipsExperienceStep(){
     var e = funnelState.answers.erfahrung;
@@ -383,6 +391,7 @@
     var target = document.querySelector('.funnel-step[data-step="'+n+'"]');
     if(target) target.classList.add('active');
     funnelState.step = n;
+    if(n === 9) trackFunnelOnce('FragebogenKontaktschritt');
     var back = document.getElementById('funnelBack');
     if(back) back.hidden = (n === 1);
     if(n === 3 && !target.innerHTML.trim()) renderStep3();
@@ -398,6 +407,7 @@
   function resetFunnel(){
     funnelState.step = 1;
     funnelState.answers = {};
+    funnelTracked = {};
     document.querySelectorAll('.funnel-opt.selected').forEach(function(b){ b.classList.remove('selected'); });
     document.querySelectorAll('.funnel-multi-next').forEach(function(b){ b.disabled = true; });
     var form = document.getElementById('funnelContactForm');
@@ -434,6 +444,7 @@
       group.querySelectorAll('.funnel-opt').forEach(function(b){ b.classList.remove('selected'); });
       btn.classList.add('selected');
       funnelState.answers[group.dataset.field] = {value:btn.dataset.value, label:btn.dataset.label};
+      if(group.dataset.field === 'ziel') trackFunnelOnce('FragebogenGestartet');
 
       // the amount question (step 3) depends on this answer, and its field
       // names change between paths, so drop any stale answer and re-render.
