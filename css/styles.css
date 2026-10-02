@@ -430,6 +430,8 @@ body.cookie-modal-open{overflow:hidden;}
   .funnel-multi-next:disabled::after{display:none;}
 
   .funnel-form{display:flex;flex-direction:column;}
+  .form-legal{font-size:12.5px;line-height:1.5;color:var(--muted);margin:4px 0 10px;}
+  .form-legal a,.placeholder-note a{color:var(--accent);text-decoration:underline;text-underline-offset:2px;}
 
   .funnel-booking-card{
     display:flex;flex-direction:column;align-items:flex-start;gap:18px;
