@@ -22,6 +22,37 @@
     leadsCollection = firebase.firestore().collection('leads');
   }
 
+  // ---- Anonymes Funnel-Tracking (eigene Auswertung im Dashboard) ----
+  // Keine Cookies, kein localStorage, keine personenbezogenen Daten: die
+  // Besuchs-ID existiert nur im Speicher dieses Seitenaufrufs. Gespeichert
+  // wird nur, welcher Schritt erreicht wurde und woher der Besuch kam.
+  var funnelEventsCollection = leadsCollection ? firebase.firestore().collection('funnel_events') : null;
+  var visitId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+    : (Date.now().toString(36) + Math.random().toString(36).slice(2));
+  var visitParams = new URLSearchParams(location.search);
+  var visitSource = (function(){
+    var utm = visitParams.get('utm_source');
+    if(utm) return utm.slice(0, 40);
+    if(visitParams.get('fbclid')) return 'meta';
+    var ref = document.referrer || '';
+    if(/instagram\./.test(ref)) return 'instagram';
+    if(/facebook\.|fb\.me/.test(ref)) return 'facebook';
+    if(/google\./.test(ref)) return 'google';
+    return ref && ref.indexOf(location.hostname) === -1 ? 'andere' : 'direkt';
+  })();
+  var visitAd = (visitParams.get('utm_content') || '').slice(0, 80);
+  var visitDevice = (window.matchMedia && matchMedia('(max-width: 760px)').matches) ? 'mobil' : 'desktop';
+  var visitLogged = {};
+  function logVisitEvent(key){
+    if(!funnelEventsCollection || visitLogged[key]) return;
+    visitLogged[key] = true;
+    funnelEventsCollection.add({
+      v: visitId, e: key, src: visitSource, ad: visitAd, dev: visitDevice,
+      t: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(function(){ /* Tracking darf die Seite nie stören */ });
+  }
+  logVisitEvent('seite');
+
   function saveLead(payload){
     if(!leadsCollection){
       console.warn('Firebase ist noch nicht konfiguriert (siehe FIREBASE_CONFIG) -- Lead wurde NICHT gespeichert:', payload);
@@ -206,13 +237,19 @@
 
   // Step 6 ("Womit hast du schon Erfahrung?") is skipped for beginners,
   // so their path has 9 steps instead of 10.
-  // Meta-Pixel custom events to see where people drop off in the funnel
-  // (only fire if the visitor accepted cookies, i.e. fbq exists).
+  // Meta-Pixel: Fragebogen-Fortschritt als Standard-Events melden
+  // (eigene "trackCustom"-Events verwirft Meta bei der Finanzkategorie).
+  // Feuert nur, wenn der Besucher Cookies akzeptiert hat (fbq existiert).
+  var FUNNEL_META_EVENTS = {
+    FragebogenGestartet: 'ViewContent',
+    FragebogenKontaktschritt: 'InitiateCheckout'
+  };
   var funnelTracked = {};
   function trackFunnelOnce(name){
     if(funnelTracked[name]) return;
     funnelTracked[name] = true;
-    if(typeof fbq === 'function') fbq('trackCustom', name);
+    var std = FUNNEL_META_EVENTS[name];
+    if(std && typeof fbq === 'function') fbq('track', std);
   }
   var FUNNEL_EXPERIENCE_STEP = 6;
   function funnelSkipsExperienceStep(){
@@ -392,6 +429,7 @@
     if(target) target.classList.add('active');
     funnelState.step = n;
     if(n === 9) trackFunnelOnce('FragebogenKontaktschritt');
+    if(n >= 3 && n <= 9) logVisitEvent('schritt_' + n);
     var back = document.getElementById('funnelBack');
     if(back) back.hidden = (n === 1);
     if(n === 3 && !target.innerHTML.trim()) renderStep3();
@@ -426,6 +464,15 @@
   }
 
   var funnelStage = document.getElementById('funnelStage');
+  // Fragebogen tatsächlich gesehen (mind. 40 % im Bild)
+  if(funnelStage && 'IntersectionObserver' in window){
+    var funnelSeenObserver = new IntersectionObserver(function(entries){
+      entries.forEach(function(en){
+        if(en.isIntersecting){ logVisitEvent('fragebogen_gesehen'); funnelSeenObserver.disconnect(); }
+      });
+    }, {threshold: 0.4});
+    funnelSeenObserver.observe(funnelStage);
+  }
   if(funnelStage){
     funnelStage.addEventListener('click', function(e){
       var multiNext = e.target.closest && e.target.closest('.funnel-multi-next');
@@ -444,7 +491,10 @@
       group.querySelectorAll('.funnel-opt').forEach(function(b){ b.classList.remove('selected'); });
       btn.classList.add('selected');
       funnelState.answers[group.dataset.field] = {value:btn.dataset.value, label:btn.dataset.label};
-      if(group.dataset.field === 'ziel') trackFunnelOnce('FragebogenGestartet');
+      if(group.dataset.field === 'ziel'){
+        trackFunnelOnce('FragebogenGestartet');
+        logVisitEvent('gestartet');
+      }
 
       // the amount question (step 3) depends on this answer, and its field
       // names change between paths, so drop any stale answer and re-render.
@@ -506,6 +556,7 @@
         answers: funnelState.answers
       }).then(function(res){
         if(res.ok){
+          logVisitEvent('abgeschickt');
           if(typeof fbq === 'function') fbq('track', 'Lead', {content_category: 'erstgespraech_funnel'});
           sendConfirmationEmail(EMAILJS_TEMPLATE_FUNNEL, {
             name: funnelState.answers._name,

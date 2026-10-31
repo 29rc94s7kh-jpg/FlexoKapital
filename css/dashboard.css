@@ -153,3 +153,31 @@
     .wordmark .tag{display:none;}
     .user-row{flex-direction:column;align-items:flex-end;gap:6px;}
   }
+
+  /* ---- Fragebogen-Trichter ---- */
+  .funnel-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px 24px;margin-bottom:28px;}
+  .funnel-head{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:18px;}
+  .funnel-head h2{font-size:17px;font-weight:800;margin:0;}
+  .funnel-sub{font-size:12.5px;color:var(--muted);margin:4px 0 0;}
+  .funnel-controls{display:flex;flex-wrap:wrap;gap:10px;}
+  .funnel-controls select{
+    font-family:inherit;font-size:13.5px;color:var(--text);background:var(--surface-2);
+    border:1px solid var(--border-strong);border-radius:9px;padding:9px 12px;
+  }
+  .funnel-controls select:focus{outline:none;border-color:var(--accent);}
+  .funnel-rows{display:grid;gap:6px;}
+  .funnel-row{display:grid;grid-template-columns:minmax(150px,240px) 1fr 64px 70px;align-items:center;gap:14px;font-size:13.5px;}
+  .funnel-row .lbl{color:var(--text-dim);}
+  .funnel-row .lbl small{display:block;color:var(--muted);font-size:11.5px;}
+  .funnel-row .bar{height:22px;background:var(--surface-2);border-radius:6px;overflow:hidden;}
+  .funnel-row .bar span{display:block;height:100%;background:var(--accent);border-radius:6px;min-width:2px;}
+  .funnel-row.is-optional .bar span{background:var(--border-strong);}
+  .funnel-row.is-final .bar span{background:var(--success);}
+  .funnel-row .cnt{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;}
+  .funnel-row .drop{text-align:right;font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums;}
+  .funnel-row .drop.bad{color:var(--warn);font-weight:700;}
+  .funnel-foot{font-size:12.5px;color:var(--muted);margin:14px 0 0;}
+  @media (max-width:700px){
+    .funnel-row{grid-template-columns:1fr 54px 60px;}
+    .funnel-row .bar{grid-column:1 / -1;order:4;height:10px;}
+  }

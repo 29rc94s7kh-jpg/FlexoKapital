@@ -47,6 +47,26 @@
       <div class="stat-tile"><div class="num" id="statKontakt">0</div><div class="label">Kontaktformular</div></div>
     </div>
 
+    <section class="funnel-card" id="funnelCard">
+      <div class="funnel-head">
+        <div>
+          <h2>Fragebogen-Trichter</h2>
+          <p class="funnel-sub">Anonym gez&auml;hlt, ohne Cookies &ndash; jeder Besuch z&auml;hlt pro Schritt einmal.</p>
+        </div>
+        <div class="funnel-controls">
+          <select id="funnelRange">
+            <option value="7">Letzte 7 Tage</option>
+            <option value="30" selected>Letzte 30 Tage</option>
+            <option value="90">Letzte 90 Tage</option>
+          </select>
+          <select id="funnelSource"><option value="alle">Alle Quellen</option></select>
+          <button type="button" class="btn ghost" id="funnelReload">Aktualisieren</button>
+        </div>
+      </div>
+      <div class="funnel-rows" id="funnelRows"></div>
+      <p class="funnel-foot" id="funnelFoot">L&auml;dt&hellip;</p>
+    </section>
+
     <div class="toolbar">
       <input type="search" id="searchInput" placeholder="Suche nach Name, E-Mail oder Telefon&hellip;">
       <select id="statusFilter">

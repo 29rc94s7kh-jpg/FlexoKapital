@@ -417,6 +417,99 @@
     });
   }
 
+  // ---- Fragebogen-Trichter (anonyme funnel_events) ----
+  var FUNNEL_STEPS = [
+    {key:'seite', label:'Seite geöffnet'},
+    {key:'fragebogen_gesehen', label:'Fragebogen gesehen'},
+    {key:'gestartet', label:'Frage 1 beantwortet', sub:'Ziel'},
+    {key:'schritt_3', label:'Frage 2 beantwortet', sub:'Einmalig / monatlich'},
+    {key:'schritt_4', label:'Frage 3 beantwortet', sub:'Betrag'},
+    {key:'schritt_5', label:'Frage 4 beantwortet', sub:'Zeithorizont'},
+    {key:'schritt_6', label:'Frage 6 erreicht', sub:'nur wer schon Erfahrung hat', optional:true},
+    {key:'schritt_7', label:'Erfahrungsfragen beantwortet', sub:'Frage 5 bzw. 6'},
+    {key:'schritt_8', label:'Frage 7 beantwortet', sub:'Allein / gemeinsam'},
+    {key:'schritt_9', label:'Kontaktschritt erreicht', sub:'Frage 8 beantwortet'},
+    {key:'abgeschickt', label:'Abgeschickt', final:true}
+  ];
+  var funnelRange = document.getElementById('funnelRange');
+  var funnelSource = document.getElementById('funnelSource');
+  var funnelRows = document.getElementById('funnelRows');
+  var funnelFoot = document.getElementById('funnelFoot');
+  var funnelDocs = [];
+
+  function funnelMatches(d, filter){
+    if(filter === 'alle') return true;
+    if(filter.indexOf('src:') === 0) return (d.src || '') === filter.slice(4);
+    if(filter.indexOf('ad:') === 0) return (d.ad || '') === filter.slice(3);
+    if(filter.indexOf('dev:') === 0) return (d.dev || '') === filter.slice(4);
+    return true;
+  }
+
+  function fillFunnelSourceOptions(){
+    var current = funnelSource.value;
+    var srcs = {}, ads = {};
+    funnelDocs.forEach(function(d){ if(d.src) srcs[d.src] = 1; if(d.ad) ads[d.ad] = 1; });
+    var html = '<option value="alle">Alle Quellen</option>';
+    Object.keys(srcs).sort().forEach(function(k){ html += '<option value="src:'+escapeHtml(k).replace(/"/g,'&quot;')+'">Quelle: '+escapeHtml(k)+'</option>'; });
+    Object.keys(ads).sort().forEach(function(k){ html += '<option value="ad:'+escapeHtml(k).replace(/"/g,'&quot;')+'">Anzeige: '+escapeHtml(k)+'</option>'; });
+    html += '<option value="dev:mobil">Gerät: mobil</option><option value="dev:desktop">Gerät: desktop</option>';
+    funnelSource.innerHTML = html;
+    if(Array.prototype.some.call(funnelSource.options, function(o){ return o.value === current; })) funnelSource.value = current;
+  }
+
+  function renderFunnel(){
+    var filter = funnelSource.value || 'alle';
+    var visitsByStep = {};
+    FUNNEL_STEPS.forEach(function(st){ visitsByStep[st.key] = {}; });
+    funnelDocs.forEach(function(d){
+      if(!funnelMatches(d, filter)) return;
+      if(visitsByStep[d.e]) visitsByStep[d.e][d.v] = 1;
+    });
+    // "schritt_7 erreicht" heißt auch: Frage 5 beantwortet (Einsteiger überspringen Frage 6)
+    var counts = FUNNEL_STEPS.map(function(st){ return Object.keys(visitsByStep[st.key]).length; });
+    var max = Math.max.apply(null, counts.concat([1]));
+    var html = '';
+    var prevCount = null;
+    FUNNEL_STEPS.forEach(function(st, i){
+      var c = counts[i];
+      var dropTxt = '', dropBad = false;
+      if(!st.optional && prevCount !== null && prevCount > 0){
+        var drop = Math.round((1 - c / prevCount) * 100);
+        dropTxt = drop > 0 ? '−' + drop + ' %' : '±0 %';
+        dropBad = drop >= 30 && prevCount >= 5;
+      }
+      html += '<div class="funnel-row' + (st.optional ? ' is-optional' : '') + (st.final ? ' is-final' : '') + '">'
+        + '<div class="lbl">' + escapeHtml(st.label) + (st.sub ? '<small>' + escapeHtml(st.sub) + '</small>' : '') + '</div>'
+        + '<div class="bar"><span style="width:' + Math.round(c / max * 100) + '%"></span></div>'
+        + '<div class="cnt">' + c + '</div>'
+        + '<div class="drop' + (dropBad ? ' bad' : '') + '">' + dropTxt + '</div>'
+        + '</div>';
+      if(!st.optional) prevCount = c;
+    });
+    funnelRows.innerHTML = html;
+    var seen = counts[1], done = counts[counts.length - 1];
+    funnelFoot.textContent = funnelDocs.length
+      ? ('Abschlussquote ab „Fragebogen gesehen“: ' + (seen ? Math.round(done / seen * 1000) / 10 : 0) + ' %. Rote Werte = besonders viele Abbrüche an dieser Stelle.')
+      : 'Noch keine Daten im gewählten Zeitraum.';
+  }
+
+  function loadFunnel(){
+    var days = parseInt(funnelRange.value, 10) || 30;
+    var since = firebase.firestore.Timestamp.fromDate(new Date(Date.now() - days * 24 * 60 * 60 * 1000));
+    funnelFoot.textContent = 'Lädt…';
+    db.collection('funnel_events').where('t', '>=', since).get().then(function(snap){
+      funnelDocs = snap.docs.map(function(doc){ return doc.data(); });
+      fillFunnelSourceOptions();
+      renderFunnel();
+    }).catch(function(err){
+      console.error('Trichter konnte nicht geladen werden:', err);
+      funnelFoot.textContent = 'Trichter konnte nicht geladen werden (Firestore-Regeln für funnel_events schon eingetragen?).';
+    });
+  }
+  funnelRange.addEventListener('change', loadFunnel);
+  funnelSource.addEventListener('change', renderFunnel);
+  document.getElementById('funnelReload').addEventListener('click', loadFunnel);
+
   function stopLeadsListener(){
     if(unsubscribeLeads){ unsubscribeLeads(); unsubscribeLeads = null; }
   }
@@ -438,5 +531,6 @@
     userRow.hidden = false;
     showOnly(dashboardContent);
     startLeadsListener();
+    loadFunnel();
   });
 })();
