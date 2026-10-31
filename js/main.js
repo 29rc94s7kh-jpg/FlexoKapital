@@ -29,7 +29,10 @@
   var funnelEventsCollection = leadsCollection ? firebase.firestore().collection('funnel_events') : null;
   var visitId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
     : (Date.now().toString(36) + Math.random().toString(36).slice(2));
-  var visitParams = new URLSearchParams(location.search);
+  // Parameter können je nach Link auch hinter dem #-Anker hängen
+  // (z. B. #erstgespraech?utm_source=meta), deshalb beide Stellen lesen.
+  var hashQuery = location.hash.replace(/^#[^?&]*[?&]?/, '');
+  var visitParams = new URLSearchParams(location.search.replace(/^\?/, '') + (hashQuery ? '&' + hashQuery : ''));
   var visitSource = (function(){
     var utm = visitParams.get('utm_source');
     if(utm) return utm.slice(0, 40);
@@ -173,10 +176,14 @@
     var open = mobileMenu.classList.toggle('open');
     mobileToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
   });
+  // Seiten-ID aus dem Anker lesen, angehängte Parameter ignorieren
+  function pageFromHash(){
+    return (location.hash || '').replace('#', '').split(/[?&]/)[0] || 'start';
+  }
   window.addEventListener('hashchange', function(){
-    showPage(location.hash.replace('#',''));
+    showPage(pageFromHash());
   });
-  showPage(location.hash ? location.hash.replace('#','') : 'start', false);
+  showPage(pageFromHash(), false);
   updateNavIndicator(true);
 
   // ---- scroll-reveal for cards/rows/tiles, staggered by position among siblings ----
