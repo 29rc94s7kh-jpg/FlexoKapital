@@ -42,9 +42,21 @@
   })();
   var visitAd = (visitParams.get('utm_content') || '').slice(0, 80);
   var visitDevice = (window.matchMedia && matchMedia('(max-width: 760px)').matches) ? 'mobil' : 'desktop';
+  // Eigene Besuche nicht mitzählen: Wer sich im Dashboard anmeldet (oder die
+  // Seite einmal mit ?notrack=1 öffnet), wird auf diesem Gerät dauerhaft
+  // ausgenommen. ?notrack=0 schaltet das Zählen wieder ein. Lokale Tests
+  // (nicht auf flexokapital.at) werden nie gezählt.
+  var visitNotTracked = (function(){
+    if(!/(^|\.)flexokapital\.at$/.test(location.hostname)) return true;
+    try{
+      if(visitParams.get('notrack') === '1') localStorage.setItem('fk_notrack', '1');
+      if(visitParams.get('notrack') === '0') localStorage.removeItem('fk_notrack');
+      return localStorage.getItem('fk_notrack') === '1';
+    }catch(e){ return false; }
+  })();
   var visitLogged = {};
   function logVisitEvent(key){
-    if(!funnelEventsCollection || visitLogged[key]) return;
+    if(!funnelEventsCollection || visitNotTracked || visitLogged[key]) return;
     visitLogged[key] = true;
     funnelEventsCollection.add({
       v: visitId, e: key, src: visitSource, ad: visitAd, dev: visitDevice,

@@ -530,6 +530,8 @@
     userEmail.textContent = user.email;
     userRow.hidden = false;
     showOnly(dashboardContent);
+    // eigene Website-Besuche auf diesem Gerät nicht mehr im Trichter zählen
+    try{ localStorage.setItem('fk_notrack', '1'); }catch(e){}
     startLeadsListener();
     loadFunnel();
   });
