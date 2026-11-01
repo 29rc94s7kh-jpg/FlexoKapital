@@ -545,7 +545,12 @@
     var since = firebase.firestore.Timestamp.fromDate(new Date(Date.now() - days * 24 * 60 * 60 * 1000));
     funnelFoot.textContent = 'Lädt…';
     db.collection('funnel_events').where('t', '>=', since).get().then(function(snap){
-      funnelDocs = snap.docs.map(function(doc){ return doc.data(); });
+      funnelDocs = snap.docs.map(function(doc){
+        var d = doc.data();
+        // ältere Einträge: "B+-+Ad+01.10.2026" und "B - Ad 01.10.2026" als dieselbe Anzeige zählen
+        if(d.ad) d.ad = String(d.ad).replace(/\+/g, ' ').replace(/\s+/g, ' ').trim();
+        return d;
+      });
       fillFunnelSourceOptions();
       renderFunnel();
     }).catch(function(err){

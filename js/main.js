@@ -43,7 +43,8 @@
     if(/google\./.test(ref)) return 'google';
     return ref && ref.indexOf(location.hostname) === -1 ? 'andere' : 'direkt';
   })();
-  var visitAd = (visitParams.get('utm_content') || '').slice(0, 80);
+  // Meta kodiert Leerzeichen im Anzeigennamen teils als "+" (z. B. "B+-+Ad+01.10.2026")
+  var visitAd = (visitParams.get('utm_content') || '').replace(/\+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
   var visitDevice = (window.matchMedia && matchMedia('(max-width: 760px)').matches) ? 'mobil' : 'desktop';
   // Eigene Besuche nicht mitzählen: Wer sich im Dashboard anmeldet (oder die
   // Seite einmal mit ?notrack=1 öffnet), wird auf diesem Gerät dauerhaft
