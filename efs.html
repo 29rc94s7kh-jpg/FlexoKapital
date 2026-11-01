@@ -9,6 +9,16 @@
 <meta name="robots" content="noindex, nofollow">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="css/efs.css">
+<script>
+  // Das EFS-Dashboard läuft jetzt innerhalb von /dashboard (Reiter "EFS").
+  // Direkt aufgerufen leitet die Seite dorthin weiter.
+  (function(){
+    var embedded = true;
+    try { embedded = window.self !== window.top; } catch (e) {}
+    if (embedded) document.documentElement.classList.add('is-embedded');
+    else location.replace('dashboard.html#efs');
+  })();
+</script>
 </head>
 <body>
 <script src="https://cdn.jsdelivr.net/npm/firebase@10.13.0/firebase-app-compat.js"></script>

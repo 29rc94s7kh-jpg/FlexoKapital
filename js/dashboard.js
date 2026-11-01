@@ -17,6 +17,8 @@
   var loginError = document.getElementById('loginError');
   var deniedGate = document.getElementById('deniedGate');
   var dashboardContent = document.getElementById('dashboardContent');
+  var efsView = document.getElementById('efsView');
+  var viewNav = document.getElementById('viewNav');
   var userRow = document.getElementById('userRow');
   var userEmail = document.getElementById('userEmail');
   var statusLine = document.getElementById('statusLine');
@@ -45,7 +47,52 @@
   }
 
   function showOnly(el){
-    [loginGate, deniedGate, dashboardContent].forEach(function(e){ e.hidden = (e !== el); });
+    [loginGate, deniedGate, dashboardContent, efsView].forEach(function(e){ e.hidden = (e !== el); });
+  }
+
+  // ---- Bereichs-Navigation (Leads / EFS) ----
+  var VIEWS = { leads: 'Leads', efs: 'EFS' };
+  var currentView = 'leads';
+  var signedIn = false;
+
+  function viewFromHash(){
+    var h = (location.hash || '').replace('#', '');
+    if(VIEWS[h]) return h;
+    try{ var saved = localStorage.getItem('fk_dashboard_view'); if(VIEWS[saved]) return saved; }catch(e){}
+    return 'leads';
+  }
+
+  function ensureEfsFrame(){
+    if(efsView.querySelector('iframe')) return;
+    var frame = document.createElement('iframe');
+    frame.src = 'efs.html';
+    frame.title = 'EFS Dashboard';
+    efsView.appendChild(frame);
+  }
+
+  function applyView(view){
+    currentView = VIEWS[view] ? view : 'leads';
+    try{ localStorage.setItem('fk_dashboard_view', currentView); }catch(e){}
+    Array.prototype.forEach.call(viewNav.querySelectorAll('a[data-view]'), function(a){
+      var active = a.getAttribute('data-view') === currentView;
+      a.classList.toggle('active', active);
+      if(active) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+    });
+    document.title = VIEWS[currentView] + ' \u00b7 flexo.kapital';
+    if(!signedIn) return;
+    dashboardContent.hidden = currentView !== 'leads';
+    efsView.hidden = currentView !== 'efs';
+    document.body.classList.toggle('mode-efs', currentView === 'efs');
+    if(currentView === 'efs') ensureEfsFrame();
+  }
+
+  window.addEventListener('hashchange', function(){ applyView(viewFromHash()); });
+
+  function setSignedOutLayout(){
+    signedIn = false;
+    viewNav.hidden = true;
+    document.body.classList.remove('mode-efs');
+    efsView.innerHTML = '';
   }
 
   var AUTH_ERROR_MESSAGES = {
@@ -517,19 +564,24 @@
   auth.onAuthStateChanged(function(user){
     if(!user){
       stopLeadsListener();
+      setSignedOutLayout();
       userRow.hidden = true;
       showOnly(loginGate);
       return;
     }
     if(user.email !== ALLOWED_EMAIL){
       stopLeadsListener();
+      setSignedOutLayout();
       userRow.hidden = true;
       showOnly(deniedGate);
       return;
     }
     userEmail.textContent = user.email;
     userRow.hidden = false;
-    showOnly(dashboardContent);
+    showOnly(null);
+    signedIn = true;
+    viewNav.hidden = false;
+    applyView(viewFromHash());
     // eigene Website-Besuche auf diesem Gerät nicht mehr im Trichter zählen
     try{ localStorage.setItem('fk_notrack', '1'); }catch(e){}
     startLeadsListener();
