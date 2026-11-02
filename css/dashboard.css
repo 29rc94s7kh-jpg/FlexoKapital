@@ -201,3 +201,14 @@
     .funnel-row{grid-template-columns:1fr 54px 60px;}
     .funnel-row .bar{grid-column:1 / -1;order:4;height:10px;}
   }
+
+  /* ---- Push-Benachrichtigungen ---- */
+  .push-bar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 18px;margin-bottom:20px;}
+  .push-text{display:flex;flex-direction:column;gap:3px;font-size:13.5px;color:var(--text-dim);line-height:1.5;max-width:70ch;}
+  .push-text strong{color:var(--text);font-size:14px;}
+  .push-bar.is-active{border-color:rgba(79,191,139,.35);}
+  .push-bar.is-active .push-text strong::after{content:" \00b7  aktiv";color:var(--success);font-weight:700;}
+  .push-actions{display:flex;gap:8px;flex-wrap:wrap;}
+  .push-actions .btn{padding:8px 14px;font-size:13.5px;}
+  .push-actions .btn[disabled]{opacity:.6;cursor:default;transform:none;}
+

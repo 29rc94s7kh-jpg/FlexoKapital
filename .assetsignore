@@ -1,0 +1,11 @@
+# Nicht öffentlich ausliefern
+.git
+.gitignore
+.assetsignore
+wrangler.jsonc
+worker
+backups
+node_modules
+.wrangler
+.dev.vars
+.DS_Store

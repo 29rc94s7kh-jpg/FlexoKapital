@@ -6,6 +6,12 @@
 <meta name="robots" content="noindex, nofollow">
 <title>flexo.kapital &middot; Dashboard</title>
 <meta name="theme-color" content="#0C1116">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="flexo.kapital">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="css/dashboard.css">
 </head>
@@ -44,6 +50,17 @@
   </div>
 
   <div id="dashboardContent" hidden>
+    <div class="push-bar" id="pushBar" hidden>
+      <div class="push-text">
+        <strong>Benachrichtigungen</strong>
+        <span id="pushHint">Wird gepr&uuml;ft&hellip;</span>
+      </div>
+      <div class="push-actions">
+        <button type="button" class="btn ghost" id="pushTestBtn" hidden>Test senden</button>
+        <button type="button" class="btn" id="pushToggleBtn" hidden>Auf diesem Ger&auml;t aktivieren</button>
+      </div>
+    </div>
+
     <div class="stats">
       <div class="stat-tile"><div class="num" id="statTotal">0</div><div class="label">Gesamt</div></div>
       <div class="stat-tile"><div class="num" id="statWeek">0</div><div class="label">Diese Woche</div></div>

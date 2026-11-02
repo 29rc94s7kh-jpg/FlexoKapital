@@ -9,3 +9,7 @@ backups/
 .claude/
 .agents/
 skills/
+
+# Cloudflare/Wrangler lokal
+.wrangler/
+.dev.vars

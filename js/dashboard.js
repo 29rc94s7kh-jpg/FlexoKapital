@@ -566,6 +566,122 @@
     if(unsubscribeLeads){ unsubscribeLeads(); unsubscribeLeads = null; }
   }
 
+  // ---- Push-Benachrichtigungen bei neuen Leads (Web-App am Homescreen) ----
+  var VAPID_PUBLIC_KEY = 'BHl_Jyy4DgvIaQpphE_GkVcx2IcQYnY2MhAEhH1K4f5wh7f_LYxOX_B4pK37rNkTU7i5fvJ3LN0H4o-zo3IevPA';
+  var pushBar = document.getElementById('pushBar');
+  var pushHint = document.getElementById('pushHint');
+  var pushToggleBtn = document.getElementById('pushToggleBtn');
+  var pushTestBtn = document.getElementById('pushTestBtn');
+  var pushSubsDoc = db.collection('push').doc('subscriptions');
+  var pushSupported = ('serviceWorker' in navigator) && ('PushManager' in window) && ('Notification' in window);
+  var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var isStandalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+  var pushActive = false;
+
+  if('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')){
+    navigator.serviceWorker.register('/sw.js').catch(function(err){ console.warn('Service Worker nicht registriert:', err); });
+  }
+
+  function b64uToUint8(s){
+    s = s.replace(/-/g, '+').replace(/_/g, '/');
+    while(s.length % 4) s += '=';
+    var bin = atob(s), out = new Uint8Array(bin.length);
+    for(var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+  function subscriptionId(endpoint){
+    return crypto.subtle.digest('SHA-256', new TextEncoder().encode(endpoint)).then(function(buf){
+      return Array.prototype.map.call(new Uint8Array(buf).slice(0, 10), function(b){ return ('0' + b.toString(16)).slice(-2); }).join('');
+    });
+  }
+  function deviceLabel(){
+    if(isIOS) return 'iPhone/iPad';
+    if(/Android/.test(navigator.userAgent)) return 'Android';
+    if(/Mac/.test(navigator.platform)) return 'Mac';
+    return 'Computer';
+  }
+  function setPushUI(hint, opts){
+    opts = opts || {};
+    pushHint.textContent = hint;
+    pushActive = !!opts.active;
+    pushBar.classList.toggle('is-active', pushActive);
+    pushToggleBtn.hidden = !opts.button;
+    pushToggleBtn.textContent = pushActive ? 'Deaktivieren' : 'Auf diesem Gerät aktivieren';
+    pushToggleBtn.className = pushActive ? 'btn ghost' : 'btn';
+    pushToggleBtn.disabled = false;
+    pushTestBtn.hidden = !pushActive;
+  }
+  function currentSubscription(){
+    return navigator.serviceWorker.ready.then(function(reg){ return reg.pushManager.getSubscription(); });
+  }
+  function refreshPushUI(){
+    pushBar.hidden = false;
+    if(!pushSupported){
+      if(isIOS && !isStandalone){
+        setPushUI('Am iPhone geht das nur als App: in Safari auf Teilen → „Zum Home-Bildschirm“, dann das Dashboard über das neue Symbol öffnen und hier aktivieren.');
+      } else {
+        setPushUI('Dieser Browser unterstützt keine Benachrichtigungen.');
+      }
+      return;
+    }
+    if(Notification.permission === 'denied'){
+      setPushUI('Benachrichtigungen sind für diese Seite blockiert. Am iPhone erlaubst du sie unter Einstellungen → Mitteilungen → flexo.kapital, am Computer in den Website-Einstellungen des Browsers.');
+      return;
+    }
+    currentSubscription().then(function(sub){
+      if(sub) setPushUI('Du bekommst auf diesem Gerät eine Mitteilung, sobald ein neuer Lead eingeht.', {button: true, active: true});
+      else setPushUI('Lass dich auf diesem Gerät benachrichtigen, sobald ein neuer Lead eingeht.', {button: true});
+    }).catch(function(){
+      setPushUI('Benachrichtigungen konnten nicht geprüft werden. Bitte Seite neu laden.');
+    });
+  }
+  function enablePush(){
+    // requestPermission muss direkt im Klick passieren (sonst blockt iOS)
+    return Notification.requestPermission().then(function(perm){
+      if(perm !== 'granted') throw new Error('keine Erlaubnis');
+      return navigator.serviceWorker.ready;
+    }).then(function(reg){
+      return reg.pushManager.getSubscription().then(function(existing){
+        return existing || reg.pushManager.subscribe({userVisibleOnly: true, applicationServerKey: b64uToUint8(VAPID_PUBLIC_KEY)});
+      });
+    }).then(function(sub){
+      var j = sub.toJSON();
+      return subscriptionId(j.endpoint).then(function(id){
+        var subs = {};
+        subs[id] = {endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, device: deviceLabel(), created: firebase.firestore.FieldValue.serverTimestamp()};
+        return pushSubsDoc.set({subs: subs}, {merge: true});
+      });
+    });
+  }
+  function disablePush(){
+    return currentSubscription().then(function(sub){
+      if(!sub) return;
+      return subscriptionId(sub.endpoint).then(function(id){
+        return pushSubsDoc.update(new firebase.firestore.FieldPath('subs', id), firebase.firestore.FieldValue.delete())
+          .catch(function(){ /* Eintrag gab es schon nicht mehr */ })
+          .then(function(){ return sub.unsubscribe(); });
+      });
+    });
+  }
+  pushToggleBtn.addEventListener('click', function(){
+    pushToggleBtn.disabled = true;
+    (pushActive ? disablePush() : enablePush()).then(refreshPushUI).catch(function(err){
+      console.error('Push-Einstellung fehlgeschlagen:', err);
+      refreshPushUI();
+      if(Notification.permission !== 'denied') pushHint.textContent = 'Das hat nicht geklappt (' + (err && err.message || err) + '). Bitte nochmal versuchen.';
+    });
+  });
+  pushTestBtn.addEventListener('click', function(){
+    pushTestBtn.disabled = true;
+    fetch('/api/lead-notify', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({src: 'test'})})
+      .then(function(r){ return r.json(); })
+      .then(function(res){
+        pushHint.textContent = res.sent ? ('Test an ' + res.sent + (res.sent === 1 ? ' Gerät' : ' Geräte') + ' gesendet. Die Mitteilung sollte gleich erscheinen.') : ('Test nicht gesendet' + (res.error ? ': ' + res.error : '.'));
+      })
+      .catch(function(){ pushHint.textContent = 'Test konnte nicht gesendet werden.'; })
+      .then(function(){ pushTestBtn.disabled = false; });
+  });
+
   auth.onAuthStateChanged(function(user){
     if(!user){
       stopLeadsListener();
@@ -591,5 +707,6 @@
     try{ localStorage.setItem('fk_notrack', '1'); }catch(e){}
     startLeadsListener();
     loadFunnel();
+    refreshPushUI();
   });
 })();

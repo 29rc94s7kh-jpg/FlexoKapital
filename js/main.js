@@ -92,6 +92,14 @@
     emailjs.init({publicKey: EMAILJS_PUBLIC_KEY});
   }
 
+  // Push-Benachrichtigung an Raphaels Handy (Text wird serverseitig festgelegt)
+  function notifyNewLead(src){
+    if(!/(^|\.)flexokapital\.at$/.test(location.hostname)) return;
+    try{
+      fetch('/api/lead-notify', {method: 'POST', keepalive: true, headers: {'Content-Type': 'application/json'}, body: JSON.stringify({src: src})}).catch(function(){});
+    }catch(e){}
+  }
+
   function sendConfirmationEmail(templateId, params){
     if(!window.emailjs) return;
     emailjs.send(EMAILJS_SERVICE_ID, templateId, params).catch(function(err){
@@ -577,6 +585,7 @@
       }).then(function(res){
         if(res.ok){
           logVisitEvent('abgeschickt');
+          notifyNewLead('funnel');
           if(typeof fbq === 'function') fbq('track', 'Lead', {content_category: 'erstgespraech_funnel'});
           sendConfirmationEmail(EMAILJS_TEMPLATE_FUNNEL, {
             name: funnelState.answers._name,
@@ -613,6 +622,7 @@
           statusEl.style.color = 'var(--success, #4FBF8B)';
           statusEl.textContent = 'Danke! Wir melden uns bald bei dir.';
           contactMsgForm.reset();
+          notifyNewLead('kontakt');
           if(typeof fbq === 'function') fbq('track', 'Lead', {content_category: 'kontaktformular'});
           sendConfirmationEmail(EMAILJS_TEMPLATE_KONTAKT, {
             name: contactMsgName,
