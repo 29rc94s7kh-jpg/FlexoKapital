@@ -30,7 +30,12 @@
   var trashToggleBtn = document.getElementById('trashToggleBtn');
   var unsubscribeLeads = null;
   var allLeadDocs = [];
-  var expandedLeadIds = {};
+  var expandedLeadId = null;   // immer nur ein Lead aufgeklappt
+  var scrollToLeadId = null;
+
+  // Rückruf-Erinnerung: n Tage nach dem letzten Anruf, bis max. 4 Anrufe
+  var CALLBACK_DAYS = 3;
+  var MAX_CALLS = 4;
   var viewingTrash = false;
 
   var STATUS_META = {
@@ -134,9 +139,46 @@
     return div.innerHTML;
   }
 
+  function tsToDate(ts){ return (ts && ts.toDate) ? ts.toDate() : null; }
+  function dayStart(d){ var x = new Date(d.getTime()); x.setHours(0,0,0,0); return x; }
+  function formatDay(d){ return d.toLocaleDateString('de-AT', {weekday:'short', day:'2-digit', month:'2-digit'}); }
+
+  function callbackInfo(lead){
+    var calls = lead.calls || [];
+    if(lead.deleted || calls.length === 0) return null;
+    var st = lead.status || '';
+    if(st === 'termin' || st === 'kein_interesse') return null;
+    if(calls.length >= MAX_CALLS) return {maxed: true};
+    var last = null;
+    calls.forEach(function(c){ var d = tsToDate(c.at); if(d && (!last || d > last)) last = d; });
+    if(!last) return null;
+    var due = dayStart(last); due.setDate(due.getDate() + CALLBACK_DAYS);
+    var today = dayStart(new Date());
+    return {due: due, isDue: due <= today, overdueDays: Math.round((today - due) / 864e5), next: calls.length + 1};
+  }
+  function openTodoCount(lead){ return (lead.todos || []).filter(function(t){ return !t.done; }).length; }
+  function newId(){ return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+  function buildTodosHtml(lead){
+    var todos = lead.todos || [];
+    var out = '<div class="todo-block"><div class="label-sm">To-dos</div><ul class="todo-list">';
+    if(todos.length === 0){ out += '<li class="todo-empty">Keine To-dos.</li>'; }
+    todos.forEach(function(t){
+      out += '<li class="todo-item' + (t.done ? ' done' : '') + '" data-todo-id="' + escapeHtml(t.id) + '">' +
+        '<label><input type="checkbox" class="todo-check"' + (t.done ? ' checked' : '') + '><span>' + escapeHtml(t.text) + '</span></label>' +
+        '<button type="button" class="todo-del" title="To-do löschen">&times;</button></li>';
+    });
+    out += '</ul><div class="todo-add"><input type="text" class="todo-input" placeholder="Neues To-do, z. B. Angebot rechnen&hellip;" maxlength="200">' +
+      '<button type="button" class="btn ghost todo-add-btn">Hinzufügen</button></div></div>';
+    return out;
+  }
+
   function buildCallsHtml(lead){
     var calls = lead.calls || [];
-    var out = '<div class="calls-block"><div class="calls-header"><div class="label-sm">Anrufe (' + calls.length + ')</div>' +
+    var cb = callbackInfo(lead), cbHint = '';
+    if(cb && cb.maxed){ cbHint = '<span class="callback-hint">' + MAX_CALLS + ' Anrufe erreicht, keine weitere Erinnerung</span>'; }
+    else if(cb){ cbHint = '<span class="callback-hint' + (cb.isDue ? ' due' : '') + '">' + (cb.isDue ? 'Anruf ' + cb.next + ' von ' + MAX_CALLS + ' fällig' : 'Nächster Anruf ab ' + formatDay(cb.due)) + '</span>'; }
+    var out = '<div class="calls-block"><div class="calls-header"><div class="label-sm">Anrufe (' + calls.length + ')' + cbHint + '</div>' +
       '<button type="button" class="btn ghost call-add-btn">+ Anruf</button></div><div class="calls-list">';
     if(calls.length === 0){
       out += '<div class="calls-empty">Noch keine Anrufe erfasst.</div>';
@@ -186,6 +228,7 @@
       html += '<div class="detail-field detail-msg"><div class="k">Notiz vom Interessenten</div><div class="v">' + escapeHtml(lead.visitorNote) + '</div></div>';
     }
     html += buildCallsHtml(lead);
+    html += buildTodosHtml(lead);
     html += '<div class="note-block">' +
       '<div class="label-sm">Interne Notiz</div>' +
       '<textarea class="note-textarea" placeholder="Notiz zu diesem Lead (z.B. Gespraechsergebnis)&hellip;">' + escapeHtml(lead.advisorNote || '') + '</textarea>' +
@@ -252,11 +295,16 @@
       var isFunnel = lead.source === 'erstgespraech_funnel';
 
       var tr = document.createElement('tr');
-      tr.className = 'lead-row';
+      tr.className = 'lead-row' + (expandedLeadId === docId ? ' is-open' : '');
+      tr.setAttribute('data-id', docId);
+      var todoN = openTodoCount(lead), cbRow = callbackInfo(lead);
+      var marks = (lead.advisorNote ? '<span class="has-note-dot" title="Notiz vorhanden"></span>' : '') +
+        (todoN ? '<span class="has-todo" title="Offene To-dos">' + todoN + '</span>' : '') +
+        (cbRow && cbRow.isDue && !viewingTrash ? '<span class="callback-badge" title="Rückruf fällig">Anrufen</span>' : '');
       tr.innerHTML =
         '<td>' + formatDate(lead.createdAt) + '</td>' +
         '<td><span class="badge ' + (isFunnel ? 'funnel' : 'kontakt') + '">' + (isFunnel ? 'Erstgespräch' : 'Kontakt') + '</span></td>' +
-        '<td class="cell-name">' + escapeHtml(lead.name || '–') + (lead.advisorNote ? '<span class="has-note-dot" title="Notiz vorhanden"></span>' : '') + '</td>' +
+        '<td class="cell-name">' + escapeHtml(lead.name || '–') + marks + '</td>' +
         '<td class="cell-mail">' + escapeHtml(lead.email || '–') + '</td>' +
         '<td>' + escapeHtml(lead.phone || '–') + '</td>' +
         '<td class="cell-note">' + escapeHtml(lead.message || '–') + '</td>' +
@@ -286,16 +334,13 @@
       tr.appendChild(statusTd);
 
       var detailTr = document.createElement('tr');
-      detailTr.className = expandedLeadIds[docId] ? 'detail-row' : 'detail-row closed';
+      detailTr.className = expandedLeadId === docId ? 'detail-row is-open' : 'detail-row closed';
       var detailTd = document.createElement('td');
       detailTd.colSpan = 8;
       detailTd.innerHTML = buildDetailHtml(lead, viewingTrash);
       detailTr.appendChild(detailTd);
 
-      tr.addEventListener('click', function(){
-        detailTr.classList.toggle('closed');
-        expandedLeadIds[docId] = !detailTr.classList.contains('closed');
-      });
+      tr.addEventListener('click', function(){ toggleLead(docId); });
 
       leadsBody.appendChild(tr);
       leadsBody.appendChild(detailTr);
@@ -321,6 +366,42 @@
           });
         });
       }
+
+      var todoInput = detailTd.querySelector('.todo-input');
+      var todoAddBtn = detailTd.querySelector('.todo-add-btn');
+      function saveTodos(list){
+        return db.collection('leads').doc(docId).update({ todos: list }).catch(function(err){
+          console.error('To-dos konnten nicht gespeichert werden:', err);
+        });
+      }
+      if(todoInput && todoAddBtn){
+        todoInput.addEventListener('click', function(e){ e.stopPropagation(); });
+        var addTodo = function(e){
+          if(e) e.stopPropagation();
+          var text = todoInput.value.trim();
+          if(!text) return;
+          todoAddBtn.disabled = true;
+          var list = (lead.todos || []).slice();
+          list.push({ id: newId(), text: text, done: false, createdAt: firebase.firestore.Timestamp.now() });
+          saveTodos(list).then(function(){ todoAddBtn.disabled = false; });
+        };
+        todoAddBtn.addEventListener('click', addTodo);
+        todoInput.addEventListener('keydown', function(e){ if(e.key === 'Enter'){ e.preventDefault(); addTodo(e); } });
+      }
+      Array.prototype.forEach.call(detailTd.querySelectorAll('.todo-item'), function(li){
+        var id = li.getAttribute('data-todo-id');
+        li.addEventListener('click', function(e){ e.stopPropagation(); });
+        var check = li.querySelector('.todo-check');
+        check.addEventListener('change', function(){
+          var list = (lead.todos || []).map(function(t){
+            return t.id === id ? { id: t.id, text: t.text, done: check.checked, createdAt: t.createdAt || null } : t;
+          });
+          saveTodos(list);
+        });
+        li.querySelector('.todo-del').addEventListener('click', function(){
+          saveTodos((lead.todos || []).filter(function(t){ return t.id !== id; }));
+        });
+      });
 
       var callAddBtn = detailTd.querySelector('.call-add-btn');
       if(callAddBtn){
@@ -430,6 +511,9 @@
       }
     });
 
+    renderCallbacks(activeDocs);
+    if(scrollToLeadId){ var sid = scrollToLeadId; scrollToLeadId = null; scrollLeadIntoView(sid); }
+
     if(viewingTrash){
       statusLine.textContent = filtered.length === deletedDocs.length
         ? (filtered.length + (filtered.length === 1 ? ' gelöschter Lead im Papierkorb' : ' gelöschte Leads im Papierkorb'))
@@ -439,6 +523,72 @@
         ? (activeDocs.length + ' Lead' + (activeDocs.length === 1 ? '' : 's') + ' – live aktualisiert')
         : (filtered.length + ' von ' + activeDocs.length + ' Leads angezeigt');
     }
+  }
+
+  function toggleLead(docId){
+    expandedLeadId = (expandedLeadId === docId) ? null : docId;
+    if(expandedLeadId) scrollToLeadId = docId;
+    renderTable(allLeadDocs);
+  }
+
+  // Aufgeklappten Lead so scrollen, dass Zeile + Details möglichst ganz sichtbar sind
+  function scrollLeadIntoView(docId){
+    var row = leadsBody.querySelector('tr.lead-row[data-id="' + docId + '"]');
+    if(!row) return;
+    requestAnimationFrame(function(){
+      var detail = row.nextElementSibling;
+      var hdr = document.querySelector('header');
+      var off = (hdr ? hdr.getBoundingClientRect().height : 0) + 12;
+      var r1 = row.getBoundingClientRect();
+      var r2 = detail ? detail.getBoundingClientRect() : r1;
+      var viewTop = off, viewBottom = window.innerHeight - 12;
+      if(r1.top >= viewTop && r2.bottom <= viewBottom) return; // schon ganz sichtbar
+      var delta;
+      if(r2.bottom - r1.top <= viewBottom - viewTop){
+        delta = (r1.top < viewTop) ? (r1.top - viewTop) : (r2.bottom - viewBottom);
+      } else {
+        delta = r1.top - viewTop; // zu hoch: Zeile oben anlegen
+      }
+      window.scrollTo({ top: window.scrollY + delta, behavior: 'smooth' });
+    });
+  }
+
+  function openLeadFromList(docId){
+    if(viewingTrash){ viewingTrash = false; trashToggleBtn.textContent = 'Papierkorb'; trashToggleBtn.classList.remove('active'); }
+    searchInput.value = ''; statusFilter.value = 'alle'; sourceFilter.value = 'alle';
+    expandedLeadId = docId; scrollToLeadId = docId;
+    renderTable(allLeadDocs);
+  }
+
+  var callbackCard = document.getElementById('callbackCard');
+  var callbackList = document.getElementById('callbackList');
+  var callbackSub = document.getElementById('callbackSub');
+  var callbackUpcoming = document.getElementById('callbackUpcoming');
+  function renderCallbacks(activeDocs){
+    var due = [], upcoming = [];
+    activeDocs.forEach(function(doc){
+      var lead = doc.data(), cb = callbackInfo(lead);
+      if(!cb || cb.maxed) return;
+      (cb.isDue ? due : upcoming).push({ id: doc.id, lead: lead, cb: cb });
+    });
+    due.sort(function(a, b){ return a.cb.due - b.cb.due; });
+    upcoming.sort(function(a, b){ return a.cb.due - b.cb.due; });
+    callbackCard.hidden = due.length === 0 && upcoming.length === 0;
+    callbackSub.textContent = due.length ? (due.length + (due.length === 1 ? ' Person' : ' Personen') + ' heute anrufen') : 'Heute nichts fällig';
+    callbackList.innerHTML = '';
+    due.forEach(function(item){
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'callback-item';
+      var when = item.cb.overdueDays <= 0 ? 'seit heute fällig' : ('seit ' + item.cb.overdueDays + (item.cb.overdueDays === 1 ? ' Tag' : ' Tagen') + ' fällig');
+      b.innerHTML = '<span class="cb-name">' + escapeHtml(item.lead.name || '–') + '</span>' +
+        '<span class="cb-meta">Anruf ' + item.cb.next + ' von ' + MAX_CALLS + ' · ' + when + '</span>' +
+        (item.lead.phone ? '<span class="cb-phone">' + escapeHtml(item.lead.phone) + '</span>' : '');
+      b.addEventListener('click', function(){ openLeadFromList(item.id); });
+      callbackList.appendChild(b);
+    });
+    callbackUpcoming.textContent = upcoming.length
+      ? 'Demnächst: ' + upcoming.slice(0, 4).map(function(i){ return (i.lead.name || '–') + ' (' + formatDay(i.cb.due) + ')'; }).join(', ') + (upcoming.length > 4 ? ' …' : '')
+      : '';
   }
 
   searchInput.addEventListener('input', function(){ renderTable(allLeadDocs); });
