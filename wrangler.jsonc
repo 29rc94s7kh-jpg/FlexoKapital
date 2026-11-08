@@ -3,6 +3,9 @@
   "name": "flexokapital",
   "main": "worker/index.js",
   "compatibility_date": "2026-10-23",
+  "triggers": {
+    "crons": ["*/5 * * * *"]
+  },
   "observability": {
     "enabled": true
   },

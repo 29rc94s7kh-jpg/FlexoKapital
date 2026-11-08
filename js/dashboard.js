@@ -157,6 +157,18 @@
     return {due: due, isDue: due <= today, overdueDays: Math.round((today - due) / 864e5), next: calls.length + 1};
   }
   function openTodoCount(lead){ return (lead.todos || []).filter(function(t){ return !t.done; }).length; }
+  function todoDue(t){ return tsToDate(t.due); }
+  function isTodoOverdue(t){ var d = todoDue(t); return !t.done && d && d <= new Date(); }
+  function formatDueFull(d){ return formatDay(d) + ' · ' + d.toLocaleTimeString('de-AT', {hour:'2-digit', minute:'2-digit'}); }
+  // Erinnerung für den Server: nur ein Zeitpunkt, kein Text, keine Namen
+  function setReminder(rid, d){
+    if(!rid || !d || d <= new Date()) return Promise.resolve();
+    return db.collection('reminders').doc(rid).set({ at: firebase.firestore.Timestamp.fromDate(d) }).catch(function(err){ console.error('Erinnerung konnte nicht gespeichert werden:', err); });
+  }
+  function deleteReminder(rid){
+    if(!rid) return Promise.resolve();
+    return db.collection('reminders').doc(rid).delete().catch(function(err){ console.error('Erinnerung konnte nicht gelöscht werden:', err); });
+  }
   function newId(){ return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
   function buildTodosHtml(lead){
@@ -165,10 +177,12 @@
     if(todos.length === 0){ out += '<li class="todo-empty">Keine To-dos.</li>'; }
     todos.forEach(function(t){
       out += '<li class="todo-item' + (t.done ? ' done' : '') + '" data-todo-id="' + escapeHtml(t.id) + '">' +
-        '<label><input type="checkbox" class="todo-check"' + (t.done ? ' checked' : '') + '><span>' + escapeHtml(t.text) + '</span></label>' +
+        '<label><input type="checkbox" class="todo-check"' + (t.done ? ' checked' : '') + '><span>' + escapeHtml(t.text) + '</span>' +
+          (todoDue(t) ? '<em class="todo-due' + (isTodoOverdue(t) ? ' overdue' : '') + '" title="Erinnerung">' + formatDueFull(todoDue(t)) + '</em>' : '') + '</label>' +
         '<button type="button" class="todo-del" title="To-do löschen">&times;</button></li>';
     });
-    out += '</ul><div class="todo-add"><input type="text" class="todo-input" placeholder="Neues To-do, z. B. Angebot rechnen&hellip;" maxlength="200">' +
+    out += '</ul><div class="todo-hint">Datum und Uhrzeit sind optional. Wenn gesetzt, bekommst du zu dem Zeitpunkt eine Mitteilung aufs Handy.</div><div class="todo-add"><input type="text" class="todo-input" placeholder="Neues To-do, z. B. Angebot rechnen&hellip;" maxlength="200">' +
+      '<input type="datetime-local" class="todo-due-input" title="Erinnerung (optional)">' +
       '<button type="button" class="btn ghost todo-add-btn">Hinzufügen</button></div></div>';
     return out;
   }
@@ -299,7 +313,7 @@
       tr.setAttribute('data-id', docId);
       var todoN = openTodoCount(lead), cbRow = callbackInfo(lead);
       var marks = (lead.advisorNote ? '<span class="has-note-dot" title="Notiz vorhanden"></span>' : '') +
-        (todoN ? '<span class="has-todo" title="Offene To-dos">' + todoN + '</span>' : '') +
+        (todoN ? '<span class="has-todo' + ((lead.todos || []).some(isTodoOverdue) ? ' overdue' : '') + '" title="Offene To-dos">' + todoN + '</span>' : '') +
         (cbRow && cbRow.isDue && !viewingTrash ? '<span class="callback-badge" title="Rückruf fällig">Anrufen</span>' : '');
       tr.innerHTML =
         '<td>' + formatDate(lead.createdAt) + '</td>' +
@@ -376,14 +390,23 @@
       }
       if(todoInput && todoAddBtn){
         todoInput.addEventListener('click', function(e){ e.stopPropagation(); });
+        var todoDueInput = detailTd.querySelector('.todo-due-input');
+        if(todoDueInput) todoDueInput.addEventListener('click', function(e){ e.stopPropagation(); });
         var addTodo = function(e){
           if(e) e.stopPropagation();
           var text = todoInput.value.trim();
           if(!text) return;
+          var item = { id: newId(), text: text, done: false, createdAt: firebase.firestore.Timestamp.now() };
+          var dueVal = todoDueInput ? todoDueInput.value : '';
+          var due = dueVal ? new Date(dueVal) : null;
+          if(due && !isNaN(due.getTime())){
+            item.due = firebase.firestore.Timestamp.fromDate(due);
+            if(due > new Date()) item.reminderId = newId();
+          }
           todoAddBtn.disabled = true;
           var list = (lead.todos || []).slice();
-          list.push({ id: newId(), text: text, done: false, createdAt: firebase.firestore.Timestamp.now() });
-          saveTodos(list).then(function(){ todoAddBtn.disabled = false; });
+          list.push(item);
+          setReminder(item.reminderId, due).then(function(){ return saveTodos(list); }).then(function(){ todoAddBtn.disabled = false; });
         };
         todoAddBtn.addEventListener('click', addTodo);
         todoInput.addEventListener('keydown', function(e){ if(e.key === 'Enter'){ e.preventDefault(); addTodo(e); } });
@@ -392,14 +415,21 @@
         var id = li.getAttribute('data-todo-id');
         li.addEventListener('click', function(e){ e.stopPropagation(); });
         var check = li.querySelector('.todo-check');
+        var cur = (lead.todos || []).filter(function(t){ return t.id === id; })[0] || {};
         check.addEventListener('change', function(){
           var list = (lead.todos || []).map(function(t){
-            return t.id === id ? { id: t.id, text: t.text, done: check.checked, createdAt: t.createdAt || null } : t;
+            if(t.id !== id) return t;
+            var copy = {}; Object.keys(t).forEach(function(k){ copy[k] = t[k]; });
+            copy.done = check.checked;
+            return copy;
           });
-          saveTodos(list);
+          // erledigt: Erinnerung weg; wieder offen: Erinnerung neu setzen, falls noch in der Zukunft
+          (check.checked ? deleteReminder(cur.reminderId) : setReminder(cur.reminderId, todoDue(cur))).then(function(){ saveTodos(list); });
         });
         li.querySelector('.todo-del').addEventListener('click', function(){
-          saveTodos((lead.todos || []).filter(function(t){ return t.id !== id; }));
+          deleteReminder(cur.reminderId).then(function(){
+            saveTodos((lead.todos || []).filter(function(t){ return t.id !== id; }));
+          });
         });
       });
 
@@ -571,11 +601,29 @@
       if(!cb || cb.maxed) return;
       (cb.isDue ? due : upcoming).push({ id: doc.id, lead: lead, cb: cb });
     });
+    var todosDue = [];
+    activeDocs.forEach(function(doc){
+      var lead = doc.data();
+      (lead.todos || []).forEach(function(t){ if(isTodoOverdue(t)) todosDue.push({ id: doc.id, lead: lead, t: t, d: todoDue(t) }); });
+    });
+    todosDue.sort(function(a, b){ return a.d - b.d; });
     due.sort(function(a, b){ return a.cb.due - b.cb.due; });
     upcoming.sort(function(a, b){ return a.cb.due - b.cb.due; });
-    callbackCard.hidden = due.length === 0 && upcoming.length === 0;
-    callbackSub.textContent = due.length ? (due.length + (due.length === 1 ? ' Person' : ' Personen') + ' heute anrufen') : 'Heute nichts fällig';
+    callbackCard.hidden = due.length === 0 && upcoming.length === 0 && todosDue.length === 0;
+    var subParts = [];
+    if(due.length) subParts.push(due.length + (due.length === 1 ? ' Rückruf' : ' Rückrufe'));
+    if(todosDue.length) subParts.push(todosDue.length + (todosDue.length === 1 ? ' To-do' : ' To-dos'));
+    callbackSub.textContent = subParts.length ? subParts.join(' · ') + ' fällig' : 'Heute nichts fällig';
     callbackList.innerHTML = '';
+    todosDue.forEach(function(item){
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'callback-item todo-kind';
+      b.innerHTML = '<span class="cb-name">' + escapeHtml(item.t.text) + '</span>' +
+        '<span class="cb-meta">To-do · fällig ' + formatDueFull(item.d) + '</span>' +
+        '<span class="cb-phone">' + escapeHtml(item.lead.name || '–') + '</span>';
+      b.addEventListener('click', function(){ openLeadFromList(item.id); });
+      callbackList.appendChild(b);
+    });
     due.forEach(function(item){
       var b = document.createElement('button');
       b.type = 'button'; b.className = 'callback-item';

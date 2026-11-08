@@ -258,3 +258,14 @@
   .todo-add input{flex:1;font-family:inherit;font-size:14px;color:var(--text);background:var(--bg);border:1px solid var(--border-strong);border-radius:9px;padding:9px 12px;}
   .todo-add input:focus{outline:none;border-color:var(--accent);}
 
+  /* ---- To-do mit Datum/Erinnerung ---- */
+  .todo-due{font-style:normal;margin-left:auto;padding:2px 9px;border-radius:99px;background:var(--surface-2);border:1px solid var(--border);
+            font-size:12px;font-weight:600;color:var(--text-dim);white-space:nowrap;}
+  .todo-due.overdue{color:var(--warn);border-color:rgba(224,101,76,.4);background:rgba(224,101,76,.1);}
+  .todo-item.done .todo-due{opacity:.5;}
+  .todo-add input.todo-due-input{flex:0 0 auto;width:auto;color-scheme:dark;}
+  .todo-hint{font-size:12px;color:var(--muted);margin:0 0 8px;}
+  .has-todo.overdue{background:rgba(224,101,76,.18);color:var(--warn);}
+  .callback-item.todo-kind .cb-meta{color:#F5A623;}
+  @media (max-width:600px){ .todo-add{flex-wrap:wrap;} .todo-add input.todo-due-input{flex:1 1 100%;} }
+

@@ -19,7 +19,7 @@ function json(status, data) {
   return new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 }
 
-async function loadSubscriptions() {
+export async function loadSubscriptions() {
   const res = await fetch(FIRESTORE_DOC + '?key=' + FIREBASE_API_KEY);
   if (!res.ok) return [];
   const doc = await res.json();
@@ -43,10 +43,15 @@ export async function handleLeadNotify(request, env) {
   try { const body = await request.json(); if (body && MESSAGES[body.src]) src = body.src; } catch (e) {}
   const msg = MESSAGES[src];
 
-  const subs = await loadSubscriptions();
-  const payload = JSON.stringify({ title: msg.title, body: msg.body, url: '/dashboard#leads', tag: 'lead-' + Date.now() });
-  const vapid = { publicKey: VAPID_PUBLIC_KEY, privateKey: env.VAPID_PRIVATE_KEY, subject: 'mailto:office@flexokapital.at' };
+  const res = await notifyAll(env, { title: msg.title, body: msg.body, tag: 'lead-' + Date.now() });
+  return json(200, res);
+}
 
+// Schickt eine Mitteilung an alle aktivierten Geräte (auch für To-do-Erinnerungen)
+export async function notifyAll(env, msg) {
+  const subs = await loadSubscriptions();
+  const payload = JSON.stringify({ title: msg.title, body: msg.body, url: msg.url || '/dashboard#leads', tag: msg.tag || ('flexo-' + Date.now()) });
+  const vapid = { publicKey: VAPID_PUBLIC_KEY, privateKey: env.VAPID_PRIVATE_KEY, subject: 'mailto:office@flexokapital.at' };
   const results = await Promise.all(subs.map(async function (s) {
     try {
       const r = await sendPush(s, payload, vapid);
@@ -55,5 +60,5 @@ export async function handleLeadNotify(request, env) {
       return { id: s.id, error: String(e && e.message || e) };
     }
   }));
-  return json(200, { sent: results.filter(function (r) { return r.status >= 200 && r.status < 300; }).length, results });
+  return { sent: results.filter(function (r) { return r.status >= 200 && r.status < 300; }).length, results };
 }
