@@ -32,6 +32,7 @@
   var allLeadDocs = [];
   var expandedLeadId = null;   // immer nur ein Lead aufgeklappt
   var scrollToLeadId = null;
+  var pendingApptId = null;    // Lead, bei dem für "Termin vereinbart" noch Datum/Uhrzeit fehlt
 
   // Rückruf-Erinnerung: n Tage nach dem letzten Anruf, bis max. 4 Anrufe
   var CALLBACK_DAYS = 3;
@@ -88,7 +89,34 @@
     dashboardContent.hidden = currentView !== 'leads';
     efsView.hidden = currentView !== 'efs';
     document.body.classList.toggle('mode-efs', currentView === 'efs');
-    if(currentView === 'efs') ensureEfsFrame();
+    if(currentView === 'efs'){
+      ensureEfsFrame();
+      // Falls das EFS schon unsichtbar im Hintergrund geladen wurde: Layout neu berechnen
+      requestAnimationFrame(function(){
+        var f = efsView.querySelector('iframe');
+        try{ if(f && f.contentWindow) f.contentWindow.dispatchEvent(new Event('resize')); }catch(e){}
+      });
+    }
+  }
+
+  // Zugriff auf das eingebettete EFS-Dashboard (lädt es bei Bedarf unsichtbar im Hintergrund)
+  function getEfsApi(){
+    ensureEfsFrame();
+    var frame = efsView.querySelector('iframe');
+    var started = Date.now();
+    return new Promise(function(resolve, reject){
+      (function poll(){
+        var w = null;
+        try{ w = frame.contentWindow; }catch(e){}
+        if(w && w.efsLeadSync){
+          var timer = setTimeout(function(){ reject(new Error('EFS-Daten laden zu lange')); }, 20000);
+          w.efsLeadSync.ready().then(function(){ clearTimeout(timer); resolve(w.efsLeadSync); }, function(err){ clearTimeout(timer); reject(err); });
+          return;
+        }
+        if(Date.now() - started > 20000){ reject(new Error('EFS-Dashboard hat nicht geladen')); return; }
+        setTimeout(poll, 150);
+      })();
+    });
   }
 
   window.addEventListener('hashchange', function(){ applyView(viewFromHash()); });
@@ -171,6 +199,78 @@
   }
   function newId(){ return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
+  // ---- Termine (verknüpft mit dem EFS-Dashboard) ----
+  // lead.appointment = { at: Timestamp, result: null | 'eh' | 'none', eh: Zahl, booked: im EFS gebuchte EH, efs: im EFS eingetragen }
+  function pad2(n){ return ('0' + n).slice(-2); }
+  function ymd(d){ return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+  function hm(d){ return pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }
+  function toLocalInput(d){ return ymd(d) + 'T' + hm(d); }
+  function fmtEh(n){ return (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('de-AT'); }
+  function apptAt(lead){ return lead.appointment ? tsToDate(lead.appointment.at) : null; }
+  function apptOpen(lead){ return !!(lead.appointment && apptAt(lead) && !lead.appointment.result); }
+  function formatApptWhen(d){
+    var today = dayStart(new Date()), day = dayStart(d);
+    var diff = Math.round((day - today) / 864e5);
+    var label = diff === 0 ? 'Heute' : diff === 1 ? 'Morgen' : formatDay(d);
+    return label + ' · ' + hm(d);
+  }
+
+  // Überträgt Termin und EH eines Leads ins EFS-Dashboard und speichert danach den Lead.
+  // next = neuer Termin-Stand ({at, result, eh}) oder null (Termin entfernen); extra = weitere Lead-Felder.
+  function commitAppointment(docId, lead, next, extra){
+    extra = extra || {};
+    var status = ('status' in extra) ? extra.status : (lead.status || '');
+    var deleted = ('deleted' in extra) ? extra.deleted : !!lead.deleted;
+    var prev = lead.appointment || {};
+    var prevBooked = Number(prev.booked) || 0;
+    var newBooked = (next && next.result === 'eh') ? (Number(next.eh) || 0) : 0;
+    var d = next ? tsToDate(next.at) : null;
+    var inEfs = !!(d && !next.result && status === 'termin' && !deleted);
+    var op = {
+      leadId: docId,
+      termin: inEfs ? { date: ymd(d), time: hm(d), label: lead.name || 'Lead' } : null,
+      unitsDelta: Math.round((newBooked - prevBooked) * 100) / 100,
+      customerDelta: (newBooked > 0 ? 1 : 0) - (prevBooked > 0 ? 1 : 0)
+    };
+    var updates = {};
+    Object.keys(extra).forEach(function(k){ updates[k] = extra[k]; });
+    if(next){
+      updates.appointment = { at: next.at || null, result: next.result || null, eh: newBooked, booked: newBooked, efs: inEfs };
+    } else if(lead.appointment){
+      updates.appointment = firebase.firestore.FieldValue.delete();
+    }
+    var needsEfs = op.termin || prev.efs || op.unitsDelta || op.customerDelta;
+    var efsStep = needsEfs ? getEfsApi().then(function(api){ return api.apply(op); }) : Promise.resolve();
+    return efsStep.then(function(){ return db.collection('leads').doc(docId).update(updates); });
+  }
+
+  function buildApptHtml(lead, docId){
+    var a = lead.appointment || {};
+    var at = apptAt(lead);
+    var booked = Number(a.booked) || 0;
+    var needsDate = !at;
+    var syncTxt = '';
+    if(booked > 0) syncTxt = '<span class="appt-sync ok">' + fmtEh(booked) + ' EH im EFS gebucht</span>';
+    else if(a.result === 'none') syncTxt = '<span class="appt-sync">ohne EH abgeschlossen</span>';
+    else if(a.efs) syncTxt = '<span class="appt-sync ok">im EFS eingetragen</span>';
+    var out = '<div class="appt-block' + (needsDate ? ' needs-date' : '') + '"><div class="label-sm">Termin' + syncTxt + '</div>' +
+      '<div class="appt-row"><input type="datetime-local" class="appt-at" value="' + (at ? toLocalInput(at) : '') + '">' +
+      '<button type="button" class="btn appt-save-btn">' + (at ? 'Termin ändern' : 'Termin speichern') + '</button></div>';
+    if(needsDate){
+      out += '<div class="appt-hint">Datum und Uhrzeit eintragen. Danach wird der Status auf „Termin vereinbart“ gesetzt und der Termin im EFS-Dashboard eingetragen.</div>';
+    } else {
+      var past = at <= new Date();
+      out += '<div class="appt-result"><span class="appt-q' + (past && !a.result ? ' due' : '') + '">Hat der Termin EH gebracht?</span>' +
+        '<button type="button" class="outcome-btn appt-res' + (a.result === 'eh' ? ' active' : '') + '" data-res="eh">Ja</button>' +
+        '<button type="button" class="outcome-btn appt-res' + (a.result === 'none' ? ' active' : '') + '" data-res="none">Nein</button>' +
+        (a.result ? '<button type="button" class="appt-reset">Zurücksetzen</button>' : '') + '</div>' +
+        '<div class="appt-eh-row"' + (a.result === 'eh' ? '' : ' hidden') + '><input type="text" class="appt-eh" inputmode="decimal" autocomplete="off" placeholder="z. B. 4,5" value="' + (booked > 0 ? fmtEh(booked) : '') + '"><span>EH</span>' +
+        '<button type="button" class="btn appt-eh-btn">' + (booked > 0 ? 'EH ändern' : 'EH buchen') + '</button></div>';
+    }
+    out += '<div class="appt-msg" aria-live="polite"></div></div>';
+    return out;
+  }
+
   function buildTodosHtml(lead){
     var todos = lead.todos || [];
     var out = '<div class="todo-block"><div class="label-sm">To-dos</div><ul class="todo-list">';
@@ -222,7 +322,7 @@
 
   var ANSWER_FIELD_ORDER = ['ziel', 'art', 'einmalbetrag', 'sparrate', 'groessenordnung', 'zeithorizont', 'erfahrung', 'erfahrung_mit', 'bestehend', 'entscheidung', 'timing']; // 'bestehend' only on older leads
 
-  function buildDetailHtml(lead, viewingTrashView){
+  function buildDetailHtml(lead, viewingTrashView, docId){
     var parts = [];
     if(lead.answers && typeof lead.answers === 'object'){
       var answerKeys = Object.keys(lead.answers).filter(function(key){ return key.indexOf('_') !== 0; }); // _name/_email/_phone sind schon in den Spalten
@@ -240,6 +340,9 @@
     }
     if(lead.visitorNote){
       html += '<div class="detail-field detail-msg"><div class="k">Notiz vom Interessenten</div><div class="v">' + escapeHtml(lead.visitorNote) + '</div></div>';
+    }
+    if(!viewingTrashView && ((lead.status || '') === 'termin' || lead.appointment || pendingApptId === docId)){
+      html += buildApptHtml(lead, docId);
     }
     html += buildCallsHtml(lead);
     html += buildTodosHtml(lead);
@@ -314,7 +417,10 @@
       var todoN = openTodoCount(lead), cbRow = callbackInfo(lead);
       var marks = (lead.advisorNote ? '<span class="has-note-dot" title="Notiz vorhanden"></span>' : '') +
         (todoN ? '<span class="has-todo' + ((lead.todos || []).some(isTodoOverdue) ? ' overdue' : '') + '" title="Offene To-dos">' + todoN + '</span>' : '') +
-        (cbRow && cbRow.isDue && !viewingTrash ? '<span class="callback-badge" title="Rückruf fällig">Anrufen</span>' : '');
+        (cbRow && cbRow.isDue && !viewingTrash ? '<span class="callback-badge" title="Rückruf fällig">Anrufen</span>' : '') +
+        (apptOpen(lead) && !viewingTrash ? (apptAt(lead) <= new Date()
+          ? '<span class="appt-badge due" title="Termin vorbei, Ergebnis eintragen">Ergebnis offen</span>'
+          : '<span class="appt-badge" title="Termin">' + formatApptWhen(apptAt(lead)) + '</span>') : '');
       tr.innerHTML =
         '<td>' + formatDate(lead.createdAt) + '</td>' +
         '<td><span class="badge ' + (isFunnel ? 'funnel' : 'kontakt') + '">' + (isFunnel ? 'Erstgespräch' : 'Kontakt') + '</span></td>' +
@@ -339,10 +445,33 @@
       statusSelect.addEventListener('change', function(e){
         e.stopPropagation();
         var newVal = statusSelect.value;
+        var oldVal = lead.status || '';
+        // "Termin vereinbart" nur mit Datum und Uhrzeit
+        if(newVal === 'termin' && !apptAt(lead)){
+          statusSelect.value = oldVal;
+          applyStatusStyle(statusSelect, oldVal);
+          pendingApptId = docId; expandedLeadId = docId; scrollToLeadId = docId;
+          renderTable(allLeadDocs);
+          var inp = leadsBody.querySelector('tr.lead-row[data-id="' + docId + '"]');
+          inp = inp && inp.nextElementSibling && inp.nextElementSibling.querySelector('.appt-at');
+          if(inp) setTimeout(function(){ inp.focus(); }, 350);
+          return;
+        }
         applyStatusStyle(statusSelect, newVal);
-        db.collection('leads').doc(docId).update({ status: newVal }).catch(function(err){
+        var job;
+        if(lead.appointment && (newVal === 'termin' || oldVal === 'termin')){
+          // offener Termin: beim Wegwechseln aus dem EFS entfernen, beim Zurückwechseln wieder eintragen
+          var keep = (newVal !== 'termin' && apptOpen(lead)) ? null : lead.appointment;
+          job = commitAppointment(docId, lead, keep, { status: newVal });
+        } else {
+          job = db.collection('leads').doc(docId).update({ status: newVal });
+        }
+        statusSelect.disabled = true;
+        job.catch(function(err){
           console.error('Status konnte nicht gespeichert werden:', err);
-        });
+          alert('Status konnte nicht gespeichert werden: ' + (err && err.message || err));
+          statusSelect.value = oldVal; applyStatusStyle(statusSelect, oldVal);
+        }).then(function(){ statusSelect.disabled = false; });
       });
       statusTd.appendChild(statusSelect);
       tr.appendChild(statusTd);
@@ -351,7 +480,7 @@
       detailTr.className = expandedLeadId === docId ? 'detail-row is-open' : 'detail-row closed';
       var detailTd = document.createElement('td');
       detailTd.colSpan = 8;
-      detailTd.innerHTML = buildDetailHtml(lead, viewingTrash);
+      detailTd.innerHTML = buildDetailHtml(lead, viewingTrash, docId);
       detailTr.appendChild(detailTd);
 
       tr.addEventListener('click', function(){ toggleLead(docId); });
@@ -503,7 +632,21 @@
             var updates = { calls: newCalls };
             var currentStatus = lead.status || '';
             if(outcome === 'termin'){
-              updates.status = 'termin';
+              if(!apptAt(lead)){
+                // erst Datum und Uhrzeit abfragen, Status folgt beim Speichern des Termins
+                pendingApptId = docId;
+                db.collection('leads').doc(docId).update(updates).catch(function(err){
+                  console.error('Anruf-Ergebnis konnte nicht gespeichert werden:', err);
+                });
+                renderTable(allLeadDocs);
+                return;
+              }
+              if(currentStatus !== 'termin'){
+                commitAppointment(docId, lead, lead.appointment, { calls: newCalls, status: 'termin' }).catch(function(err){
+                  console.error('Anruf-Ergebnis konnte nicht gespeichert werden:', err);
+                });
+                return;
+              }
             } else if(outcome === 'kein_interesse'){
               if(currentStatus !== 'termin'){ updates.status = 'kein_interesse'; }
             } else if(outcome === 'abgehoben'){
@@ -516,13 +659,85 @@
         });
       });
 
+      var apptBlock = detailTd.querySelector('.appt-block');
+      if(apptBlock){
+        apptBlock.addEventListener('click', function(e){ e.stopPropagation(); });
+        var apptMsg = apptBlock.querySelector('.appt-msg');
+        var apptButtons = apptBlock.querySelectorAll('button');
+        var setBusy = function(on, text){
+          Array.prototype.forEach.call(apptButtons, function(b){ b.disabled = on; });
+          apptMsg.className = 'appt-msg'; apptMsg.textContent = text || '';
+        };
+        var showErr = function(err){
+          console.error('Termin konnte nicht gespeichert werden:', err);
+          setBusy(false);
+          apptMsg.className = 'appt-msg err';
+          apptMsg.textContent = 'Nicht gespeichert: ' + (err && err.message || err) + '. Bitte nochmal versuchen.';
+        };
+        var cur = lead.appointment || {};
+        var curNext = function(changes){
+          var n = { at: cur.at || null, result: cur.result || null, eh: Number(cur.booked) || 0 };
+          Object.keys(changes).forEach(function(k){ n[k] = changes[k]; });
+          return n;
+        };
+        apptBlock.querySelector('.appt-save-btn').addEventListener('click', function(){
+          var val = apptBlock.querySelector('.appt-at').value;
+          var d = val ? new Date(val) : null;
+          if(!d || isNaN(d.getTime())){ apptMsg.className = 'appt-msg err'; apptMsg.textContent = 'Bitte Datum und Uhrzeit eintragen.'; return; }
+          setBusy(true, 'Wird gespeichert und ins EFS übertragen…');
+          var extra = (lead.status || '') !== 'termin' ? { status: 'termin' } : {};
+          commitAppointment(docId, lead, curNext({ at: firebase.firestore.Timestamp.fromDate(d) }), extra).then(function(){
+            if(pendingApptId === docId) pendingApptId = null;
+          }).catch(showErr);
+        });
+        var ehRow = apptBlock.querySelector('.appt-eh-row');
+        Array.prototype.forEach.call(apptBlock.querySelectorAll('.appt-res'), function(btn){
+          btn.addEventListener('click', function(){
+            var res = btn.getAttribute('data-res');
+            if(res === 'eh'){
+              ehRow.hidden = false;
+              Array.prototype.forEach.call(apptBlock.querySelectorAll('.appt-res'), function(b){ b.classList.toggle('active', b === btn); });
+              var ehIn = ehRow.querySelector('.appt-eh'); ehIn.focus();
+              return;
+            }
+            var booked = Number(cur.booked) || 0;
+            if(booked > 0 && !confirm('Die gebuchten ' + fmtEh(booked) + ' EH werden im EFS wieder abgezogen. Fortfahren?')) return;
+            setBusy(true, 'Wird gespeichert…');
+            commitAppointment(docId, lead, curNext({ result: 'none', eh: 0 })).catch(showErr);
+          });
+        });
+        var ehBtn = apptBlock.querySelector('.appt-eh-btn');
+        if(ehBtn){
+          var ehInput = ehRow.querySelector('.appt-eh');
+          var bookEh = function(){
+            var v = parseFloat(String(ehInput.value).trim().replace(/\s/g, '').replace(',', '.'));
+            if(!(v > 0)){ apptMsg.className = 'appt-msg err'; apptMsg.textContent = 'Bitte die Anzahl EH eintragen (größer als 0).'; return; }
+            v = Math.round(v * 100) / 100;
+            setBusy(true, 'EH werden im EFS gebucht…');
+            commitAppointment(docId, lead, curNext({ result: 'eh', eh: v })).catch(showErr);
+          };
+          ehBtn.addEventListener('click', bookEh);
+          ehInput.addEventListener('keydown', function(e){ if(e.key === 'Enter'){ e.preventDefault(); bookEh(); } });
+        }
+        var resetBtn = apptBlock.querySelector('.appt-reset');
+        if(resetBtn){
+          resetBtn.addEventListener('click', function(){
+            var booked = Number(cur.booked) || 0;
+            if(booked > 0 && !confirm('Die gebuchten ' + fmtEh(booked) + ' EH werden im EFS wieder abgezogen. Fortfahren?')) return;
+            setBusy(true, 'Wird zurückgesetzt…');
+            commitAppointment(docId, lead, curNext({ result: null, eh: 0 })).catch(showErr);
+          });
+        }
+      }
+
       var deleteLeadBtn = detailTd.querySelector('.delete-lead-btn');
       if(deleteLeadBtn){
         deleteLeadBtn.addEventListener('click', function(e){
           e.stopPropagation();
           if(!confirm('Diesen Lead in den Papierkorb verschieben?')) return;
           deleteLeadBtn.disabled = true;
-          db.collection('leads').doc(docId).update({ deleted: true, deletedAt: firebase.firestore.Timestamp.now() }).catch(function(err){
+          var delUpd = { deleted: true, deletedAt: firebase.firestore.Timestamp.now() };
+          (lead.appointment ? commitAppointment(docId, lead, lead.appointment, delUpd) : db.collection('leads').doc(docId).update(delUpd)).catch(function(err){
             deleteLeadBtn.disabled = false;
             console.error('Lead konnte nicht gelöscht werden:', err);
           });
@@ -533,7 +748,8 @@
         restoreBtn.addEventListener('click', function(e){
           e.stopPropagation();
           restoreBtn.disabled = true;
-          db.collection('leads').doc(docId).update({ deleted: false, deletedAt: null }).catch(function(err){
+          var resUpd = { deleted: false, deletedAt: null };
+          (lead.appointment ? commitAppointment(docId, lead, lead.appointment, resUpd) : db.collection('leads').doc(docId).update(resUpd)).catch(function(err){
             restoreBtn.disabled = false;
             console.error('Lead konnte nicht wiederhergestellt werden:', err);
           });
@@ -594,7 +810,37 @@
   var callbackList = document.getElementById('callbackList');
   var callbackSub = document.getElementById('callbackSub');
   var callbackUpcoming = document.getElementById('callbackUpcoming');
+  var apptSection = document.getElementById('apptSection');
+  var apptList = document.getElementById('apptList');
+  function renderAppointments(activeDocs){
+    var items = [], noDate = [];
+    activeDocs.forEach(function(doc){
+      var lead = doc.data();
+      if(apptOpen(lead)) items.push({ id: doc.id, lead: lead, d: apptAt(lead) });
+      else if((lead.status || '') === 'termin' && !apptAt(lead)) noDate.push({ id: doc.id, lead: lead });
+    });
+    items.sort(function(a, b){ return a.d - b.d; });
+    apptList.innerHTML = '';
+    var now = new Date();
+    items.concat(noDate).forEach(function(item){
+      var b = document.createElement('button');
+      b.type = 'button';
+      var meta, cls = 'callback-item appt-kind';
+      if(!item.d){ meta = 'Datum fehlt'; cls += ' is-due'; }
+      else if(item.d <= now){ meta = formatDay(item.d) + ' · ' + hm(item.d) + ' · Ergebnis eintragen'; cls += ' is-due'; }
+      else { meta = formatApptWhen(item.d); if(dayStart(item.d).getTime() === dayStart(now).getTime()) cls += ' is-today'; }
+      b.className = cls;
+      b.innerHTML = '<span class="cb-name">' + escapeHtml(item.lead.name || '–') + '</span>' +
+        '<span class="cb-meta">' + escapeHtml(meta) + '</span>' +
+        (item.lead.phone ? '<span class="cb-phone">' + escapeHtml(item.lead.phone) + '</span>' : '');
+      b.addEventListener('click', function(){ openLeadFromList(item.id); });
+      apptList.appendChild(b);
+    });
+    apptSection.hidden = items.length + noDate.length === 0;
+    return items.length + noDate.length;
+  }
   function renderCallbacks(activeDocs){
+    var apptCount = renderAppointments(activeDocs);
     var due = [], upcoming = [];
     activeDocs.forEach(function(doc){
       var lead = doc.data(), cb = callbackInfo(lead);
@@ -609,11 +855,12 @@
     todosDue.sort(function(a, b){ return a.d - b.d; });
     due.sort(function(a, b){ return a.cb.due - b.cb.due; });
     upcoming.sort(function(a, b){ return a.cb.due - b.cb.due; });
-    callbackCard.hidden = due.length === 0 && upcoming.length === 0 && todosDue.length === 0;
+    callbackCard.hidden = due.length === 0 && upcoming.length === 0 && todosDue.length === 0 && apptCount === 0;
     var subParts = [];
     if(due.length) subParts.push(due.length + (due.length === 1 ? ' Rückruf' : ' Rückrufe'));
     if(todosDue.length) subParts.push(todosDue.length + (todosDue.length === 1 ? ' To-do' : ' To-dos'));
-    callbackSub.textContent = subParts.length ? subParts.join(' · ') + ' fällig' : 'Heute nichts fällig';
+    callbackSub.textContent = (subParts.length ? subParts.join(' · ') + ' fällig' : 'Heute nichts fällig') +
+      (apptCount ? ' · ' + apptCount + (apptCount === 1 ? ' offener Termin' : ' offene Termine') : '');
     callbackList.innerHTML = '';
     todosDue.forEach(function(item){
       var b = document.createElement('button');

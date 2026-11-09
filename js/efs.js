@@ -16,6 +16,12 @@
   var db = firebase.firestore();
   var efsDocRef = db.collection('efs').doc('main');
   var efsDataLoaded = false;
+  var efsLoadOk = false;          // nur true, wenn die gespeicherten Daten wirklich geladen wurden
+  var efsReadyWaiters = [];       // wartende Aufrufe aus dem Leads-Dashboard
+  function flushEfsReady(err) {
+    var list = efsReadyWaiters; efsReadyWaiters = [];
+    list.forEach(function(w) { if (err) w.reject(err); else w.resolve(); });
+  }
 
   var efsLoginGateEl = document.getElementById('efsLoginGate');
   var efsLoginErrorEl = document.getElementById('efsLoginError');
@@ -69,10 +75,13 @@
     efsDocRef.get().then(function(doc) {
       if (doc.exists) applyAppState(doc.data());
       efsDataLoaded = true;
+      efsLoadOk = true;
+      flushEfsReady(null);
       setSaveStatus('✓ Verbunden mit Firestore — Änderungen werden automatisch gespeichert.', 'connected');
     }).catch(function(err) {
       console.error('Daten konnten nicht geladen werden:', err);
       efsDataLoaded = true;
+      flushEfsReady(err || new Error('EFS-Daten konnten nicht geladen werden'));
       setSaveStatus('⚠️ Daten konnten nicht geladen werden — bitte Seite neu laden.', 'error');
     });
   });
@@ -3036,9 +3045,10 @@
           date: String(t.date || ''),
           time: String(t.time || ''),
           label: String(t.label || ''),
-          umsatzEH: Number(t.umsatzEH) || 0
+          umsatzEH: Number(t.umsatzEH) || 0,
+          leadId: t.leadId ? String(t.leadId) : undefined
         };
-      }).filter(function(t) { return t.date; });
+      }).map(function(t) { if (!t.leadId) delete t.leadId; return t; }).filter(function(t) { return t.date; });
       termineIdSeq = termine.reduce(function(max, t) {
         var m = parseInt(String(t.id).replace(/^t/, ''), 10);
         return isFinite(m) ? Math.max(max, m) : max;
@@ -3162,6 +3172,67 @@
     if (efsSaveTimer) clearTimeout(efsSaveTimer);
     efsSaveTimer = setTimeout(pushEfsSave, 700);
   }
+
+  // ---------- Schnittstelle für das Leads-Dashboard ----------
+  // Das Leads-Dashboard bettet diese Seite ein und trägt darüber Termine aus den Leads ein
+  // (verknüpft per leadId, immer bei Raphael, Typ Analyse) und bucht EH als Eigengeschäft.
+  // Vor jeder Änderung wird der aktuelle Stand aus Firestore geladen, damit Änderungen von
+  // einem anderen Gerät nicht überschrieben werden; danach wird sofort gespeichert.
+  function whenEfsReady() {
+    if (efsDataLoaded) return efsLoadOk ? Promise.resolve() : Promise.reject(new Error('EFS-Daten konnten nicht geladen werden'));
+    return new Promise(function(resolve, reject) { efsReadyWaiters.push({ resolve: resolve, reject: reject }); });
+  }
+
+  var leadSyncQueue = Promise.resolve();
+  function applyLeadSync(op) {
+    var run = function() {
+      if (!efsLoadOk) return Promise.reject(new Error('EFS-Daten nicht geladen'));
+      var flush = Promise.resolve();
+      if (efsSaveTimer) { // noch nicht gespeicherte Änderungen aus dem EFS zuerst sichern
+        clearTimeout(efsSaveTimer); efsSaveTimer = null;
+        flush = efsDocRef.set(collectAppState());
+      }
+      return flush.then(function() { return efsDocRef.get(); }).then(function(doc) {
+        if (doc.exists) applyAppState(doc.data());
+        var linked = termine.filter(function(t) { return t.leadId === op.leadId; });
+        if (op.termin && op.termin.date) {
+          if (linked.length) {
+            linked[0].date = op.termin.date;
+            linked[0].time = op.termin.time || '';
+            linked[0].label = String(op.termin.label || '').trim();
+            var keepId = linked[0].id;
+            termine = termine.filter(function(t) { return t.leadId !== op.leadId || t.id === keepId; });
+          } else {
+            termineIdSeq += 1;
+            termine.push({ id: 't' + termineIdSeq, personId: 'raphael', type: 'analyse', date: op.termin.date,
+              time: op.termin.time || '', label: String(op.termin.label || '').trim(), umsatzEH: 0, leadId: op.leadId });
+          }
+        } else if (linked.length) {
+          termine = termine.filter(function(t) { return t.leadId !== op.leadId; });
+          if (editingTerminId && !termine.some(function(t) { return t.id === editingTerminId; })) editingTerminId = null;
+        }
+        if (op.unitsDelta) addUnitsToPerson('raphael', op.unitsDelta);
+        if (op.customerDelta && custMonatEl) {
+          custMonatEl.value = Math.max(0, num(custMonatEl) + op.customerDelta);
+          if (typeof recalcCustomers === 'function') recalcCustomers();
+        }
+        renderOrgTree();
+        renderPersonDetail();
+        renderNaechsteTermine();
+        renderHeute();
+        return efsDocRef.set(collectAppState());
+      }).then(function() {
+        var t = new Date();
+        setSaveStatus('✓ Aus dem Leads-Dashboard übernommen um ' + ('0' + t.getHours()).slice(-2) + ':' + ('0' + t.getMinutes()).slice(-2) + '.', 'connected');
+      });
+    };
+    // Aufrufe nacheinander abarbeiten, nie parallel
+    var p = leadSyncQueue.then(run, run);
+    leadSyncQueue = p.catch(function() {});
+    return p;
+  }
+
+  window.efsLeadSync = { ready: whenEfsReady, apply: applyLeadSync };
 
   if (btnConnectFile) btnConnectFile.style.display = 'none';
 
