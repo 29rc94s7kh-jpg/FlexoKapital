@@ -3175,7 +3175,7 @@
 
   // ---------- Schnittstelle für das Leads-Dashboard ----------
   // Das Leads-Dashboard bettet diese Seite ein und trägt darüber Termine aus den Leads ein
-  // (verknüpft per leadId, immer bei Raphael, Typ Analyse) und bucht EH als Eigengeschäft.
+  // (verknüpft per leadId, immer bei Raphael; Erstgespräch = Analyse, Beratung = Beratung) und bucht EH als Eigengeschäft.
   // Vor jeder Änderung wird der aktuelle Stand aus Firestore geladen, damit Änderungen von
   // einem anderen Gerät nicht überschrieben werden; danach wird sofort gespeichert.
   function whenEfsReady() {
@@ -3200,11 +3200,13 @@
             linked[0].date = op.termin.date;
             linked[0].time = op.termin.time || '';
             linked[0].label = String(op.termin.label || '').trim();
+            if (op.termin.type && TERMIN_TYPES.some(function(tt) { return tt.key === op.termin.type; })) linked[0].type = op.termin.type;
             var keepId = linked[0].id;
             termine = termine.filter(function(t) { return t.leadId !== op.leadId || t.id === keepId; });
           } else {
             termineIdSeq += 1;
-            termine.push({ id: 't' + termineIdSeq, personId: 'raphael', type: 'analyse', date: op.termin.date,
+            var opType = (op.termin.type && TERMIN_TYPES.some(function(tt) { return tt.key === op.termin.type; })) ? op.termin.type : 'analyse';
+            termine.push({ id: 't' + termineIdSeq, personId: 'raphael', type: opType, date: op.termin.date,
               time: op.termin.time || '', label: String(op.termin.label || '').trim(), umsatzEH: 0, leadId: op.leadId });
           }
         } else if (linked.length) {

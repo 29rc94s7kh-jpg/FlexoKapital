@@ -303,3 +303,35 @@
   .appt-msg{font-size:12.5px;color:var(--muted);margin-top:8px;}
   .appt-msg:empty{display:none;}
   .appt-msg.err{color:var(--warn);}
+
+  /* Termine mit Art und Verlauf (Erstgespräch / Beratung) */
+  .appt-history{list-style:none;margin:0 0 12px;padding:0;display:flex;flex-direction:column;gap:6px;}
+  .appt-history li{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:8px 12px;border-radius:9px;background:var(--surface);border:1px solid var(--border);font-size:13.5px;}
+  .ah-type{font-weight:700;min-width:96px;}
+  .ah-when{color:var(--text-dim);font-variant-numeric:tabular-nums;}
+  .ah-res{font-weight:600;padding:2px 9px;border-radius:99px;font-size:12px;}
+  .ah-res.tone-good{background:rgba(79,191,139,.16);color:var(--success);}
+  .ah-res.tone-bad{background:rgba(224,101,76,.16);color:var(--warn);}
+  .ah-res.tone-warn{background:rgba(245,166,35,.16);color:#F5A623;}
+  .appt-history .appt-reset{margin-left:auto;}
+  .appt-open{display:flex;flex-direction:column;gap:2px;}
+  .appt-row select{font-family:inherit;font-size:14px;color:var(--text);background:var(--bg);border:1px solid var(--border-strong);border-radius:9px;padding:9px 10px;}
+  .appt-row select:focus{outline:none;border-color:var(--accent);}
+  .appt-del{background:none;border:none;color:var(--muted);font-family:inherit;font-size:12.5px;text-decoration:underline;cursor:pointer;padding:4px;}
+  .appt-del:hover{color:var(--warn);}
+  .appt-res.active[data-res="beratung"],.appt-res.active[data-res="abschluss"]{background:rgba(79,191,139,.16);color:var(--success);border-color:transparent;}
+  .appt-res.active[data-res="kein_interesse"],.appt-res.active[data-res="kein_abschluss"],.appt-res.active[data-res="noshow"]{background:rgba(224,101,76,.16);color:var(--warn);border-color:transparent;}
+  .appt-res.active[data-res="abgesagt"]{background:rgba(245,166,35,.16);color:#F5A623;border-color:transparent;}
+  .appt-sub{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:4px;}
+  .appt-sub input{font-family:inherit;font-size:14px;color:var(--text);background:var(--bg);border:1px solid var(--border-strong);border-radius:9px;padding:9px 12px;color-scheme:dark;}
+  .appt-sub input:focus{outline:none;border-color:var(--accent);}
+  .appt-sub .appt-eh{width:110px;font-variant-numeric:tabular-nums;}
+  .appt-sub span{font-size:13.5px;color:var(--text-dim);font-weight:600;}
+  .appt-sub .btn{padding:8px 14px;font-size:13px;}
+  .appt-block.needs-date .appt-new .appt-at{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);}
+  .appt-block .appt-new .appt-at{color-scheme:dark;}
+  .appt-sync.bad{color:var(--warn);}
+  .appt-badge.beratung{background:rgba(167,139,250,.16);color:#A78BFA;}
+  .callback-item.appt-kind.is-beratung .cb-meta{color:#A78BFA;}
+  .callback-item.followup-kind .cb-meta{color:var(--warn);}
+  .callback-item.followup-kind{border-color:rgba(224,101,76,.35);}
