@@ -426,76 +426,92 @@
     return out;
   }
 
-  function buildCallsHtml(lead){
+  var justAddedCall = null;   // Lead, bei dem gerade ein Anruf angelegt wurde (neuester Anruf wird kurz hervorgehoben)
+  var noteSavedAt = {};       // leadId -> Zeitpunkt der letzten automatischen Notiz-Speicherung
+  var CALL_OUTCOMES = [['abgehoben', 'Abgehoben'], ['termin', 'Termin vereinbart'], ['kein_interesse', 'Kein Interesse']];
+
+  function buildCallsHtml(lead, docId){
     var calls = lead.calls || [];
     var cb = callbackInfo(lead), cbHint = '';
     if(cb && cb.maxed){ cbHint = '<span class="callback-hint">' + MAX_CALLS + ' Anrufe ohne Erfolg, keine weitere Erinnerung</span>'; }
     else if(!cb && calls.length && wasReached(lead)){ cbHint = '<span class="callback-hint">Erreicht, keine Anruf-Erinnerung mehr</span>'; }
     else if(cb){ cbHint = '<span class="callback-hint' + (cb.isDue ? ' due' : '') + '">' + (cb.isDue ? 'Anruf ' + cb.next + ' von ' + MAX_CALLS + ' fällig' : 'Nächster Anruf ab ' + formatDay(cb.due)) + '</span>'; }
-    var out = '<div class="calls-block"><div class="calls-header"><div class="label-sm">Anrufe (' + calls.length + ')' + cbHint + '</div>' +
-      '<button type="button" class="btn ghost call-add-btn">+ Anruf</button></div><div class="calls-list">';
+    var out = '<div class="calls-block"><div class="label-sm">Anrufe (' + calls.length + ')' + cbHint + '</div><div class="calls-list">';
     if(calls.length === 0){
-      out += '<div class="calls-empty">Noch keine Anrufe erfasst.</div>';
-    } else {
-      calls.forEach(function(call, idx){
-        var outcomeLabel = '';
-        if(call.outcome === 'termin'){ outcomeLabel = '<span class="call-outcome-label outcome-termin">Termin vereinbart</span>'; }
-        else if(call.outcome === 'kein_interesse'){ outcomeLabel = '<span class="call-outcome-label outcome-kein_interesse">Kein Interesse</span>'; }
-        else if(call.outcome === 'abgehoben'){ outcomeLabel = '<span class="call-outcome-label outcome-abgehoben">Abgehoben</span>'; }
-        out += '<div class="call-item" data-call-index="' + idx + '">' +
-          '<div class="call-meta"><span class="call-date">' + formatDate(call.at) + '</span>' + outcomeLabel + '</div>' +
-          '<textarea class="call-note-textarea" placeholder="Notiz zu diesem Anruf&hellip;">' + escapeHtml(call.note || '') + '</textarea>' +
-          '<div class="call-actions">' +
-            '<button type="button" class="btn ghost call-note-save-btn">Notiz speichern</button>' +
-            '<span class="note-saved call-note-saved">Gespeichert &check;</span>' +
-            '<button type="button" class="outcome-btn' + (call.outcome === 'termin' ? ' active' : '') + '" data-outcome="termin">Termin vereinbart</button>' +
-            '<button type="button" class="outcome-btn' + (call.outcome === 'kein_interesse' ? ' active' : '') + '" data-outcome="kein_interesse">Kein Interesse</button>' +
-            '<button type="button" class="outcome-btn' + (call.outcome === 'abgehoben' ? ' active' : '') + '" data-outcome="abgehoben">Abgehoben</button>' +
-            '<button type="button" class="btn ghost call-delete-btn">Löschen</button>' +
-          '</div>' +
+      out += '<div class="calls-empty">Noch keine Anrufe erfasst. Oben auf „Anruf erfassen“ tippen.</div>';
+    }
+    // neuester Anruf oben
+    for(var idx = calls.length - 1; idx >= 0; idx--){
+      var call = calls[idx];
+      out += '<div class="call-item' + (justAddedCall === docId && idx === calls.length - 1 ? ' is-new' : '') + '" data-call-index="' + idx + '">' +
+        '<div class="call-top"><span class="call-date">' + formatDate(call.at) + '</span>' +
+        '<div class="call-outcomes">' + CALL_OUTCOMES.map(function(o){
+          return '<button type="button" class="outcome-btn' + (call.outcome === o[0] ? ' active' : '') + '" data-outcome="' + o[0] + '">' + o[1] + '</button>';
+        }).join('') + '</div>' +
+        '<button type="button" class="call-delete-btn" title="Anruf löschen" aria-label="Anruf löschen">&times;</button></div>' +
+        '<textarea class="call-note-textarea" rows="1" placeholder="Notiz zum Anruf …">' + escapeHtml(call.note || '') + '</textarea>' +
         '</div>';
-      });
     }
     out += '</div></div>';
     return out;
   }
 
   var ANSWER_FIELD_ORDER = ['ziel', 'art', 'einmalbetrag', 'sparrate', 'groessenordnung', 'zeithorizont', 'erfahrung', 'erfahrung_mit', 'bestehend', 'entscheidung', 'timing']; // 'bestehend' only on older leads
+  var ANSWER_LABELS = { ziel: 'Ziel', art: 'Art', einmalbetrag: 'Einmalbetrag', sparrate: 'Sparrate', groessenordnung: 'Größenordnung',
+    zeithorizont: 'Zeithorizont', erfahrung: 'Erfahrung', erfahrung_mit: 'Erfahrung mit', bestehend: 'Bestehendes', entscheidung: 'Entscheidung', timing: 'Timing' };
+  function answerText(val){
+    if(Array.isArray(val)) return val.map(answerText).filter(Boolean).join(', ');
+    if(val && typeof val === 'object') return ('label' in val) ? String(val.label) : '';
+    return (val === undefined || val === null) ? '' : String(val);
+  }
+  var ICON_PHONE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg>';
+  var ICON_MAIL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>';
+  var ICON_WA = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2c-1.5 0-3-.4-4.3-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1-.7-.3-1.4-.7-2-1.3-.5-.5-1-1.1-1.3-1.7-.1-.2 0-.4.1-.5l.4-.4.3-.5v-.5l-.8-1.9c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.3-.2.3-.9.9-.9 2.2s.9 2.5 1 2.7c.1.2 1.8 2.8 4.4 3.9 1.6.7 2.3.8 3.1.6.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.2-1.2-.1-.1-.3-.2-.5-.3z"/></svg>';
 
+  // Detailansicht eines Leads: Kopf (Kontakt + Schnellaktionen), links Verlauf (Termine, Anrufe, To-dos),
+  // rechts Profil (Fragebogen, Nachricht, interne Notiz). Am Handy einspaltig.
   function buildDetailHtml(lead, viewingTrashView, docId){
-    var parts = [];
+    var isFunnel = lead.source === 'erstgespraech_funnel';
+    var meta = [isFunnel ? 'Fragebogen' : 'Kontaktformular'];
+    if(isFunnel){
+      var at = leadAttribution[docId];
+      meta.push(at ? (at.ad ? 'Anzeige: ' + at.ad : (at.src ? 'Quelle: ' + at.src : 'ohne Anzeige')) : 'Anzeige unbekannt');
+    }
+    meta.push('eingegangen ' + formatDate(lead.createdAt));
+    var wa = waNumber(lead.phone);
+    var head = '<div class="ld-head"><div class="ld-meta">' + meta.map(escapeHtml).join(' · ') + '</div>' +
+      '<div class="ld-contact">' +
+        (lead.phone ? '<a class="ld-chip" href="tel:' + escapeHtml(String(lead.phone).replace(/[^\d+]/g, '')) + '">' + ICON_PHONE + escapeHtml(lead.phone) + '</a>' : '') +
+        (wa ? '<a class="ld-chip wa" href="https://wa.me/' + wa + '" target="_blank" rel="noopener">' + ICON_WA + 'WhatsApp</a>' : '') +
+        (lead.email ? '<a class="ld-chip" href="mailto:' + escapeHtml(lead.email) + '">' + ICON_MAIL + escapeHtml(lead.email) + '</a>' : '') +
+      '</div>' +
+      (viewingTrashView ? '' : '<div class="ld-actions"><button type="button" class="btn call-add-btn">+ Anruf<span class="ld-hide-m"> erfassen</span></button>' +
+        '<button type="button" class="btn ghost ld-go-appt">Termin</button><button type="button" class="btn ghost ld-go-todo">To-do</button></div>') +
+      '</div>';
+
+    var answers = '';
     if(lead.answers && typeof lead.answers === 'object'){
       var answerKeys = Object.keys(lead.answers).filter(function(key){ return key.indexOf('_') !== 0; }); // _name/_email/_phone sind schon in den Spalten
       var orderedKeys = ANSWER_FIELD_ORDER.filter(function(key){ return answerKeys.indexOf(key) !== -1; });
       var extraKeys = answerKeys.filter(function(key){ return ANSWER_FIELD_ORDER.indexOf(key) === -1; }).sort();
-      orderedKeys.concat(extraKeys).forEach(function(key){
-        var val = lead.answers[key];
-        if(val && typeof val === 'object' && 'label' in val){ val = val.label; }
-        parts.push('<div class="detail-field"><div class="k">' + escapeHtml(key) + '</div><div class="v">' + escapeHtml(val) + '</div></div>');
-      });
+      answers = orderedKeys.concat(extraKeys).map(function(key){
+        var t = answerText(lead.answers[key]);
+        return t ? '<div class="ld-kv"><dt>' + escapeHtml(ANSWER_LABELS[key] || key) + '</dt><dd>' + escapeHtml(t) + '</dd></div>' : '';
+      }).join('');
     }
-    var html = '<div class="detail-grid">' + parts.join('');
-    if(lead.message && lead.source !== 'erstgespraech_funnel'){
-      html += '<div class="detail-field detail-msg"><div class="k">Nachricht / Notizen</div><div class="v">' + escapeHtml(lead.message) + '</div></div>';
-    }
-    if(lead.visitorNote){
-      html += '<div class="detail-field detail-msg"><div class="k">Notiz vom Interessenten</div><div class="v">' + escapeHtml(lead.visitorNote) + '</div></div>';
-    }
-    if(!viewingTrashView){
-      html += buildApptHtml(lead, docId);
-    }
-    html += buildCallsHtml(lead);
-    html += buildTodosHtml(lead);
-    html += '<div class="note-block">' +
-      '<div class="label-sm">Interne Notiz</div>' +
-      '<textarea class="note-textarea" placeholder="Notiz zu diesem Lead (z.B. Gespraechsergebnis)&hellip;">' + escapeHtml(lead.advisorNote || '') + '</textarea>' +
-      '<div class="note-actions"><button type="button" class="btn ghost note-save-btn">Notiz speichern</button><span class="note-saved">Gespeichert &check;</span></div>' +
-      '</div>';
-    html += '<div class="detail-footer">' + (viewingTrashView
-      ? '<button type="button" class="btn ghost restore-btn">Lead wiederherstellen</button>'
-      : '<button type="button" class="btn ghost delete-lead-btn">Lead löschen</button>') + '</div>';
-    html += '</div>';
-    return html;
+    var savedRecently = noteSavedAt[docId] && Date.now() - noteSavedAt[docId] < 2500;
+    var side = '<aside class="ld-side">' +
+      (answers ? '<section class="ld-card"><div class="label-sm">Fragebogen</div><dl class="ld-answers">' + answers + '</dl></section>' : '') +
+      (lead.message && !isFunnel ? '<section class="ld-card"><div class="label-sm">Nachricht</div><p class="ld-text">' + escapeHtml(lead.message) + '</p></section>' : '') +
+      (lead.visitorNote ? '<section class="ld-card"><div class="label-sm">Notiz vom Interessenten</div><p class="ld-text">' + escapeHtml(lead.visitorNote) + '</p></section>' : '') +
+      '<section class="ld-card note-block"><div class="label-sm">Interne Notiz<span class="note-saved' + (savedRecently ? ' show' : '') + '">Gespeichert &check;</span></div>' +
+        '<textarea class="note-textarea" placeholder="Notiz zu diesem Lead, wird automatisch gespeichert …">' + escapeHtml(lead.advisorNote || '') + '</textarea></section>' +
+      '</aside>';
+    var main = '<div class="ld-main">' + (viewingTrashView ? '' : buildApptHtml(lead, docId)) + buildCallsHtml(lead, docId) + buildTodosHtml(lead) + '</div>';
+    return '<div class="ld">' + head + '<div class="ld-cols">' + main + side + '</div>' +
+      '<div class="detail-footer">' + (viewingTrashView
+        ? '<button type="button" class="btn ghost restore-btn">Lead wiederherstellen</button>'
+        : '<button type="button" class="btn ghost delete-lead-btn">Lead löschen</button>') + '</div></div>';
   }
 
   function computeStats(docs){
@@ -538,6 +554,17 @@
     var deletedDocs = docs.filter(function(doc){ return !!doc.data().deleted; });
     var baseDocs = viewingTrash ? deletedDocs : activeDocs;
     var filtered = baseDocs.filter(function(doc){ return matchesFilters(doc.data()); });
+    // Feld, in dem gerade getippt wird, merken, damit ein Live-Update nichts überschreibt
+    var keep = null;
+    try{
+      var ae = document.activeElement;
+      if(ae && leadsBody.contains(ae) && (ae.tagName === 'TEXTAREA' || (ae.tagName === 'INPUT' && ae.type !== 'checkbox'))){
+        var dRow = ae.closest('tr.detail-row'), lRow = dRow && dRow.previousElementSibling;
+        var holder = ae.closest('[data-call-index]');
+        var sel = null; try{ sel = [ae.selectionStart, ae.selectionEnd]; }catch(_){}
+        keep = { id: lRow && lRow.getAttribute('data-id'), cls: (ae.className || '').split(' ')[0], idx: holder ? holder.getAttribute('data-call-index') : null, value: ae.value, sel: sel };
+      }
+    }catch(_){ keep = null; }
     leadsBody.innerHTML = '';
     emptyState.hidden = filtered.length > 0;
     if(viewingTrash){
@@ -638,27 +665,41 @@
       leadsBody.appendChild(tr);
       leadsBody.appendChild(detailTr);
 
+      // Interne Notiz: speichert automatisch (kurz nach dem Tippen und beim Verlassen des Felds)
       var noteTextarea = detailTd.querySelector('.note-textarea');
-      var noteSaveBtn = detailTd.querySelector('.note-save-btn');
-      var noteSavedLabel = detailTd.querySelector('.note-saved');
-      if(noteTextarea && noteSaveBtn){
+      if(noteTextarea){
         noteTextarea.addEventListener('click', function(e){ e.stopPropagation(); });
-        noteSaveBtn.addEventListener('click', function(e){
-          e.stopPropagation();
+        var noteTimer = null;
+        var saveNote = function(){
+          clearTimeout(noteTimer);
           var text = noteTextarea.value;
-          noteSaveBtn.disabled = true;
+          if((lead.advisorNote || '') === text) return;
           db.collection('leads').doc(docId).update({ advisorNote: text }).then(function(){
-            noteSaveBtn.disabled = false;
-            if(noteSavedLabel){
-              noteSavedLabel.classList.add('show');
-              setTimeout(function(){ noteSavedLabel.classList.remove('show'); }, 2000);
-            }
-          }).catch(function(err){
-            noteSaveBtn.disabled = false;
-            console.error('Notiz konnte nicht gespeichert werden:', err);
-          });
-        });
+            noteSavedAt[docId] = Date.now();
+            var lbl = leadsBody.querySelector('tr.lead-row[data-id="' + docId + '"] + tr .note-saved');
+            if(lbl) lbl.classList.add('show');
+            setTimeout(function(){
+              var l2 = leadsBody.querySelector('tr.lead-row[data-id="' + docId + '"] + tr .note-saved');
+              if(l2) l2.classList.remove('show');
+            }, 2500);
+          }).catch(function(err){ console.error('Notiz konnte nicht gespeichert werden:', err); });
+        };
+        noteTextarea.addEventListener('input', function(){ clearTimeout(noteTimer); noteTimer = setTimeout(saveNote, 1200); });
+        noteTextarea.addEventListener('blur', saveNote);
       }
+
+      // Schnellaktionen im Kopf: zum Termin- bzw. To-do-Feld springen
+      var focusField = function(sel){
+        var el = detailTd.querySelector(sel);
+        if(!el) return;
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(function(){ el.focus({ preventScroll: true }); }, 350);
+      };
+      var goAppt = detailTd.querySelector('.ld-go-appt');
+      if(goAppt) goAppt.addEventListener('click', function(e){ e.stopPropagation(); focusField('.appt-new .appt-at, .appt-open .appt-at'); });
+      var goTodo = detailTd.querySelector('.ld-go-todo');
+      if(goTodo) goTodo.addEventListener('click', function(e){ e.stopPropagation(); focusField('.todo-input'); });
+      Array.prototype.forEach.call(detailTd.querySelectorAll('.ld-chip'), function(a){ a.addEventListener('click', function(e){ e.stopPropagation(); }); });
 
       var todoInput = detailTd.querySelector('.todo-input');
       var todoAddBtn = detailTd.querySelector('.todo-add-btn');
@@ -683,6 +724,9 @@
             if(due > new Date()) item.reminderId = newId();
           }
           todoAddBtn.disabled = true;
+          // Felder sofort leeren, sonst stellt das Live-Update den alten Text wieder her
+          todoInput.value = '';
+          if(todoDueInput) todoDueInput.value = '';
           var list = (lead.todos || []).slice();
           list.push(item);
           setReminder(item.reminderId, due).then(function(){ return saveTodos(list); }).then(function(){ todoAddBtn.disabled = false; });
@@ -718,6 +762,8 @@
           e.stopPropagation();
           var newCalls = (lead.calls || []).slice();
           newCalls.push({ at: firebase.firestore.Timestamp.now(), note: '', outcome: null });
+          justAddedCall = docId;
+          setTimeout(function(){ if(justAddedCall === docId) justAddedCall = null; }, 2500);
           var updates = { calls: newCalls };
           if((lead.status || '') === ''){ updates.status = 'kontaktiert'; }
           callAddBtn.disabled = true;
@@ -734,24 +780,15 @@
       Array.prototype.forEach.call(callItems, function(callItemEl){
         var idx = parseInt(callItemEl.getAttribute('data-call-index'), 10);
         var callTextarea = callItemEl.querySelector('.call-note-textarea');
-        var callSaveBtn = callItemEl.querySelector('.call-note-save-btn');
-        var callSavedLabel = callItemEl.querySelector('.call-note-saved');
-        if(callTextarea){ callTextarea.addEventListener('click', function(e){ e.stopPropagation(); }); }
-        if(callSaveBtn){
-          callSaveBtn.addEventListener('click', function(e){
-            e.stopPropagation();
-            var newCalls = (lead.calls || []).slice();
-            if(!newCalls[idx]) return;
-            newCalls[idx] = { at: newCalls[idx].at, note: callTextarea.value, outcome: newCalls[idx].outcome };
-            callSaveBtn.disabled = true;
-            db.collection('leads').doc(docId).update({ calls: newCalls }).then(function(){
-              callSaveBtn.disabled = false;
-              if(callSavedLabel){
-                callSavedLabel.classList.add('show');
-                setTimeout(function(){ callSavedLabel.classList.remove('show'); }, 2000);
-              }
-            }).catch(function(err){
-              callSaveBtn.disabled = false;
+        if(callTextarea){
+          callTextarea.addEventListener('click', function(e){ e.stopPropagation(); });
+          // Anruf-Notiz speichert beim Verlassen des Felds
+          callTextarea.addEventListener('blur', function(){
+            var calls0 = lead.calls || [];
+            if(!calls0[idx] || (calls0[idx].note || '') === callTextarea.value) return;
+            var newCalls = calls0.slice();
+            newCalls[idx] = { at: newCalls[idx].at, note: callTextarea.value, outcome: newCalls[idx].outcome || null };
+            db.collection('leads').doc(docId).update({ calls: newCalls }).catch(function(err){
               console.error('Anruf-Notiz konnte nicht gespeichert werden:', err);
             });
           });
@@ -789,6 +826,10 @@
                   console.error('Anruf-Ergebnis konnte nicht gespeichert werden:', err);
                 });
                 renderTable(allLeadDocs);
+                setTimeout(function(){
+                  var inp = leadsBody.querySelector('tr.lead-row[data-id="' + docId + '"] + tr .appt-new .appt-at');
+                  if(inp){ inp.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(function(){ inp.focus({ preventScroll: true }); }, 350); }
+                }, 400);
                 return;
               }
               updates.status = 'termin';
@@ -930,6 +971,19 @@
       }
     });
 
+    syncDetailWidth();
+    if(keep && keep.id && keep.cls){
+      var kRow = leadsBody.querySelector('tr.lead-row[data-id="' + keep.id + '"]');
+      var kDet = kRow && kRow.nextElementSibling;
+      var kEl = kDet && (keep.idx !== null ? kDet.querySelector('[data-call-index="' + keep.idx + '"] .' + keep.cls) : kDet.querySelector('.' + keep.cls));
+      if(kEl){
+        var hiddenSub = kEl.closest('.appt-sub[hidden]');
+        if(hiddenSub) hiddenSub.hidden = false;
+        kEl.value = keep.value;
+        kEl.focus({ preventScroll: true });
+        if(keep.sel && keep.sel[0] !== null){ try{ kEl.setSelectionRange(keep.sel[0], keep.sel[1]); }catch(_){} }
+      }
+    }
     renderCallbacks(activeDocs);
     if(scrollToLeadId){ var sid = scrollToLeadId; scrollToLeadId = null; scrollLeadIntoView(sid); }
 
@@ -943,6 +997,14 @@
         : (filtered.length + ' von ' + activeDocs.length + ' Leads angezeigt');
     }
   }
+
+  // Am Handy ist die Tabelle breiter als der Bildschirm: die Detailansicht bekommt die sichtbare Breite
+  // und bleibt beim seitlichen Wischen der Tabelle stehen (position: sticky in dashboard.css).
+  function syncDetailWidth(){
+    var wrap = leadsBody.closest('.table-wrap');
+    if(wrap) wrap.style.setProperty('--wrap-w', wrap.clientWidth + 'px');
+  }
+  window.addEventListener('resize', syncDetailWidth);
 
   function toggleLead(docId){
     expandedLeadId = (expandedLeadId === docId) ? null : docId;
