@@ -172,9 +172,15 @@
   function dayStart(d){ var x = new Date(d.getTime()); x.setHours(0,0,0,0); return x; }
   function formatDay(d){ return d.toLocaleDateString('de-AT', {weekday:'short', day:'2-digit', month:'2-digit'}); }
 
+  // Erreicht = bei mindestens einem Anruf abgehoben (Ergebnis Abgehoben, Termin oder Kein Interesse)
+  function wasReached(lead){
+    return (lead.calls || []).some(function(c){ return c.outcome === 'abgehoben' || c.outcome === 'termin' || c.outcome === 'kein_interesse'; });
+  }
+  // Rückruf-Erinnerung nur, solange die Person noch nie abgehoben hat (max. 4 Anrufe)
   function callbackInfo(lead){
     var calls = lead.calls || [];
     if(lead.deleted || calls.length === 0) return null;
+    if(wasReached(lead)) return null;
     var st = lead.status || '';
     if(st === 'termin' || st === 'kein_interesse' || st === 'abschluss') return null;
     if(openAppt(lead) || followUpInfo(lead)) return null;
@@ -423,7 +429,8 @@
   function buildCallsHtml(lead){
     var calls = lead.calls || [];
     var cb = callbackInfo(lead), cbHint = '';
-    if(cb && cb.maxed){ cbHint = '<span class="callback-hint">' + MAX_CALLS + ' Anrufe erreicht, keine weitere Erinnerung</span>'; }
+    if(cb && cb.maxed){ cbHint = '<span class="callback-hint">' + MAX_CALLS + ' Anrufe ohne Erfolg, keine weitere Erinnerung</span>'; }
+    else if(!cb && calls.length && wasReached(lead)){ cbHint = '<span class="callback-hint">Erreicht, keine Anruf-Erinnerung mehr</span>'; }
     else if(cb){ cbHint = '<span class="callback-hint' + (cb.isDue ? ' due' : '') + '">' + (cb.isDue ? 'Anruf ' + cb.next + ' von ' + MAX_CALLS + ' fällig' : 'Nächster Anruf ab ' + formatDay(cb.due)) + '</span>'; }
     var out = '<div class="calls-block"><div class="calls-header"><div class="label-sm">Anrufe (' + calls.length + ')' + cbHint + '</div>' +
       '<button type="button" class="btn ghost call-add-btn">+ Anruf</button></div><div class="calls-list">';
