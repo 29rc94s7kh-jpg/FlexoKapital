@@ -1099,6 +1099,8 @@
       allLeadDocs = snap.docs;
       computeStats(allLeadDocs);
       renderTable(allLeadDocs);
+      matchAttribution();
+      renderQuality();
     }, function(err){
       console.error('Leads konnten nicht geladen werden:', err);
       statusLine.textContent = 'Fehler beim Laden der Leads.';
@@ -1202,6 +1204,184 @@
   funnelRange.addEventListener('change', loadFunnel);
   funnelSource.addEventListener('change', renderFunnel);
   document.getElementById('funnelReload').addEventListener('click', loadFunnel);
+
+  // ---- Lead-Qualität: was aus den Leads wird (Anruf → Termin → Abschluss) ----
+  // Die Anzeige je Lead kommt aus den anonymen funnel_events: Das Ereignis "abgeschickt" entsteht
+  // im selben Moment wie der Lead und trägt Quelle und Anzeige. Zuordnung über den Zeitpunkt
+  // (höchstens 2 Minuten Abstand), dadurch auch für alle älteren Leads.
+  var qualityRange = document.getElementById('qualityRange');
+  var qualitySource = document.getElementById('qualitySource');
+  var qualityRows = document.getElementById('qualityRows');
+  var qualityKpis = document.getElementById('qualityKpis');
+  var qualityFoot = document.getElementById('qualityFoot');
+  var submitEvents = null;     // [{t: Date, ad, src}] oder null, solange nicht geladen
+  var leadAttribution = {};    // leadId -> {ad, src} | null (nicht zuordenbar)
+
+  function loadLeadAttribution(){
+    db.collection('funnel_events').where('e', '==', 'abgeschickt').get().then(function(snap){
+      submitEvents = snap.docs.map(function(doc){
+        var d = doc.data();
+        return { t: tsToDate(d.t), ad: d.ad ? String(d.ad).replace(/\+/g, ' ').replace(/\s+/g, ' ').trim() : '', src: d.src || '' };
+      }).filter(function(e){ return e.t; });
+      matchAttribution();
+      renderQuality();
+    }).catch(function(err){
+      console.error('Anzeigen-Zuordnung konnte nicht geladen werden:', err);
+      submitEvents = [];
+      matchAttribution();
+      renderQuality();
+    });
+  }
+  function matchAttribution(){
+    leadAttribution = {};
+    if(!submitEvents) return;
+    var used = {};
+    var pairs = [];
+    allLeadDocs.forEach(function(doc){
+      var lead = doc.data();
+      if(lead.source !== 'erstgespraech_funnel') return;
+      var c = tsToDate(lead.createdAt);
+      if(!c) return;
+      submitEvents.forEach(function(ev, i){
+        var diff = Math.abs(ev.t - c);
+        if(diff <= 120000) pairs.push({ id: doc.id, i: i, diff: diff });
+      });
+    });
+    pairs.sort(function(a, b){ return a.diff - b.diff; });
+    pairs.forEach(function(p){
+      if(used[p.i] || leadAttribution[p.id]) return;
+      used[p.i] = true;
+      leadAttribution[p.id] = { ad: submitEvents[p.i].ad, src: submitEvents[p.i].src };
+    });
+  }
+  function leadAdKey(doc){
+    var lead = doc.data();
+    if(lead.source !== 'erstgespraech_funnel') return 'kontakt';
+    var a = leadAttribution[doc.id];
+    if(!a) return '__unknown';
+    return a.ad ? 'ad:' + a.ad : '__none';
+  }
+  function fillQualitySourceOptions(){
+    var current = qualitySource.value || 'alle';
+    var ads = {};
+    allLeadDocs.forEach(function(doc){ var k = leadAdKey(doc); if(k.indexOf('ad:') === 0) ads[k.slice(3)] = 1; });
+    var html = '<option value="alle">Alle Quellen</option><option value="typ:funnel">Fragebogen</option><option value="typ:kontakt">Kontaktformular</option>';
+    Object.keys(ads).sort().forEach(function(k){ html += '<option value="ad:' + escapeHtml(k).replace(/"/g, '&quot;') + '">Anzeige: ' + escapeHtml(k) + '</option>'; });
+    html += '<option value="__none">Fragebogen ohne Anzeige</option><option value="__unknown">Fragebogen, Anzeige unbekannt</option>';
+    qualitySource.innerHTML = html;
+    if(Array.prototype.some.call(qualitySource.options, function(o){ return o.value === current; })) qualitySource.value = current;
+  }
+  function qualityMatches(doc, filter){
+    if(filter === 'alle') return true;
+    var lead = doc.data();
+    if(filter === 'typ:funnel') return lead.source === 'erstgespraech_funnel';
+    if(filter === 'typ:kontakt') return lead.source !== 'erstgespraech_funnel';
+    return leadAdKey(doc) === filter;
+  }
+  function pct(a, b){ return b > 0 ? Math.round(a / b * 100) + ' %' : '–'; }
+
+  function renderQuality(){
+    if(!qualityRows) return;
+    fillQualitySourceOptions();
+    var days = parseInt(qualityRange.value, 10) || 0;
+    var since = days ? Date.now() - days * 864e5 : 0;
+    var filter = qualitySource.value || 'alle';
+    var docs = allLeadDocs.filter(function(doc){
+      var lead = doc.data();
+      if(lead.deleted) return false;
+      var c = tsToDate(lead.createdAt);
+      if(since && (!c || c.getTime() < since)) return false;
+      return qualityMatches(doc, filter);
+    });
+    var n = { leads: 0, called: 0, reached: 0, erstSet: 0, erstHeld: 0, berSet: 0, berHeld: 0, won: 0, erstOpen: 0, berOpen: 0 };
+    var k = { erstOk: 0, erstNo: 0, erstCancel: 0, berOk: 0, berNo: 0, berCancel: 0, kiPhone: 0, kiErst: 0, noAbschluss: 0, unreachable: 0, eh: 0 };
+    docs.forEach(function(doc){
+      var lead = doc.data();
+      var appts = apptsOf(lead);
+      var erst = appts.filter(function(a){ return a.type === 'erst'; });
+      var ber = appts.filter(function(a){ return a.type === 'beratung'; });
+      var calls = lead.calls || [];
+      var st = lead.status || '';
+      var reached = wasReached(lead) || appts.length > 0 || st === 'termin' || st === 'kein_interesse' || st === 'abschluss';
+      var erstSet = erst.length > 0 || ber.length > 0 || (st === 'termin' && !appts.length);
+      var erstHeld = erst.some(function(a){ return a.result === 'beratung' || a.result === 'kein_interesse'; }) || ber.length > 0;
+      var berSet = ber.length > 0 || erst.some(function(a){ return a.result === 'beratung'; });
+      var berHeld = ber.some(function(a){ return a.result === 'abschluss' || a.result === 'kein_abschluss'; });
+      var won = ber.some(function(a){ return a.result === 'abschluss'; });
+      n.leads++;
+      if(calls.length || reached) n.called++;
+      if(reached) n.reached++;
+      if(erstSet) n.erstSet++;
+      if(erstHeld) n.erstHeld++;
+      if(berSet) n.berSet++;
+      if(berHeld) n.berHeld++;
+      if(won) n.won++;
+      var hasOpen = function(arr){ return arr.some(function(a){ return !a.result; }); };
+      if(erstSet && !erstHeld && (hasOpen(erst) || (st === 'termin' && !appts.length))) n.erstOpen++;
+      if(berSet && !berHeld && hasOpen(ber)) n.berOpen++;
+      erst.forEach(function(a){
+        if(a.result === 'beratung' || a.result === 'kein_interesse') k.erstOk++;
+        else if(a.result === 'noshow') k.erstNo++;
+        else if(a.result === 'abgesagt') k.erstCancel++;
+        if(a.result === 'kein_interesse') k.kiErst++;
+      });
+      ber.forEach(function(a){
+        if(a.result === 'abschluss' || a.result === 'kein_abschluss') k.berOk++;
+        else if(a.result === 'noshow') k.berNo++;
+        else if(a.result === 'abgesagt') k.berCancel++;
+        if(a.result === 'kein_abschluss') k.noAbschluss++;
+        if(a.result === 'abschluss') k.eh += Number(a.booked) || 0;
+      });
+      var kiCall = calls.some(function(c){ return c.outcome === 'kein_interesse'; });
+      if(!erstSet && (kiCall || st === 'kein_interesse')) k.kiPhone++;
+      if(!reached && calls.length >= MAX_CALLS) k.unreachable++;
+    });
+
+    var steps = [
+      ['leads', 'Leads', 'im Zeitraum eingegangen'],
+      ['called', 'Angerufen', 'mindestens ein Anruf'],
+      ['reached', 'Erreicht', 'mindestens einmal abgehoben'],
+      ['erstSet', 'Erstgespräch vereinbart', n.erstOpen ? 'davon ' + n.erstOpen + ' noch offen' : ''],
+      ['erstHeld', 'Erstgespräch stattgefunden', ''],
+      ['berSet', 'Beratung vereinbart', n.berOpen ? 'davon ' + n.berOpen + ' noch offen' : ''],
+      ['berHeld', 'Beratung stattgefunden', ''],
+      ['won', 'Abschluss', fmtEh(k.eh) + ' EH']
+    ];
+    var max = Math.max(n.leads, 1), prev = null, html = '';
+    steps.forEach(function(s, i){
+      var c = n[s[0]];
+      var conv = prev === null ? '' : pct(c, prev);
+      var weak = prev !== null && prev >= 5 && c / prev < 0.5;
+      html += '<div class="funnel-row' + (i === steps.length - 1 ? ' is-final' : '') + '">' +
+        '<div class="lbl">' + s[1] + (s[2] ? '<small>' + escapeHtml(s[2]) + '</small>' : '') + '</div>' +
+        '<div class="bar"><span style="width:' + Math.round(c / max * 100) + '%"></span></div>' +
+        '<div class="cnt">' + c + '</div>' +
+        '<div class="drop' + (weak ? ' bad' : '') + '">' + conv + '</div></div>';
+      prev = c;
+    });
+    qualityRows.innerHTML = html;
+
+    var erstAll = k.erstOk + k.erstNo + k.erstCancel, berAll = k.berOk + k.berNo + k.berCancel;
+    var tiles = [
+      ['Show-up Erstgespräch', pct(k.erstOk, erstAll), erstAll ? k.erstOk + ' von ' + erstAll + ' stattgefunden' : 'noch keine Ergebnisse'],
+      ['Show-up Beratung', pct(k.berOk, berAll), berAll ? k.berOk + ' von ' + berAll + ' stattgefunden' : 'noch keine Ergebnisse'],
+      ['Ausfälle', String(k.erstNo + k.berNo + k.erstCancel + k.berCancel), (k.erstNo + k.berNo) + ' nicht erschienen · ' + (k.erstCancel + k.berCancel) + ' abgesagt'],
+      ['Kein Interesse', String(k.kiPhone + k.kiErst + k.noAbschluss), k.kiPhone + ' am Telefon · ' + k.kiErst + ' nach Erstgespräch · ' + k.noAbschluss + ' nach Beratung'],
+      ['Nicht erreichbar', String(k.unreachable), MAX_CALLS + ' Anrufe ohne Erfolg'],
+      ['EH pro Abschluss', n.won ? fmtEh(k.eh / n.won) : '–', n.won + (n.won === 1 ? ' Abschluss' : ' Abschlüsse')],
+      ['EH pro Lead', n.leads ? fmtEh(k.eh / n.leads) : '–', 'Wert eines Leads im Schnitt']
+    ];
+    qualityKpis.innerHTML = tiles.map(function(t){
+      return '<div class="q-kpi"><div class="q-lbl">' + t[0] + '</div><div class="q-num">' + t[1] + '</div><div class="q-sub">' + escapeHtml(t[2]) + '</div></div>';
+    }).join('');
+
+    var unknown = allLeadDocs.filter(function(doc){ return !doc.data().deleted && leadAdKey(doc) === '__unknown'; }).length;
+    qualityFoot.textContent = (submitEvents === null ? 'Anzeigen werden zugeordnet… ' : '') +
+      'Prozent = Anteil der Vorstufe, rot = weniger als die Hälfte kommt weiter. Show-up zählt nur Termine mit eingetragenem Ergebnis.' +
+      (unknown ? ' ' + unknown + (unknown === 1 ? ' Fragebogen-Lead ließ' : ' Fragebogen-Leads ließen') + ' sich keiner Anzeige zuordnen (z. B. eigene Tests oder Leads von vor dem Tracking).' : '');
+  }
+  qualityRange.addEventListener('change', renderQuality);
+  qualitySource.addEventListener('change', renderQuality);
 
   function stopLeadsListener(){
     if(unsubscribeLeads){ unsubscribeLeads(); unsubscribeLeads = null; }
@@ -1348,6 +1528,7 @@
     try{ localStorage.setItem('fk_notrack', '1'); }catch(e){}
     startLeadsListener();
     loadFunnel();
+    loadLeadAttribution();
     refreshPushUI();
   });
 })();
