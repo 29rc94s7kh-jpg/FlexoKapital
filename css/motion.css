@@ -1,0 +1,114 @@
+/* ==== Scroll- und 3D-Animationen (nur aktiv mit html.mx, also nicht bei "Bewegung reduzieren") ==== */
+
+/* ---- Hintergrund mit Tiefe: Lichtflächen, die beim Scrollen unterschiedlich schnell wandern ---- */
+.mx-bg{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden;}
+.mx-orb{position:absolute;border-radius:50%;will-change:transform;}
+.mx-orb.o1{width:62vmax;height:62vmax;left:-18vmax;top:-22vmax;background:radial-gradient(circle,rgba(76,126,255,.16) 0%,rgba(76,126,255,0) 62%);}
+.mx-orb.o2{width:54vmax;height:54vmax;right:-20vmax;top:38vh;background:radial-gradient(circle,rgba(79,191,139,.09) 0%,rgba(79,191,139,0) 62%);}
+.mx-orb.o3{width:70vmax;height:70vmax;left:10vw;top:120vh;background:radial-gradient(circle,rgba(76,126,255,.11) 0%,rgba(76,126,255,0) 60%);}
+
+/* ---- Hero ---- */
+.mx .hero{perspective:1200px;}
+.mx .hero-grid{position:relative;z-index:1;}
+.mx-floor{position:absolute;left:-20%;right:-20%;bottom:-8%;height:62%;z-index:0;pointer-events:none;
+  background-image:linear-gradient(rgba(76,126,255,.22) 1px,transparent 1px),linear-gradient(90deg,rgba(76,126,255,.22) 1px,transparent 1px);
+  background-size:64px 64px;transform:perspective(520px) rotateX(64deg);transform-origin:50% 100%;
+  -webkit-mask-image:linear-gradient(to top,rgba(0,0,0,.9),transparent 78%);mask-image:linear-gradient(to top,rgba(0,0,0,.9),transparent 78%);
+  animation:mxFloor 6s linear infinite;opacity:.55;}
+@keyframes mxFloor{to{background-position:0 64px,0 0;}}
+.mx .hero h1{animation:none;}
+.mx-word{display:inline-block;white-space:pre;opacity:0;transform:translateY(.45em) rotateX(-55deg);filter:blur(10px);transform-origin:50% 100%;
+  animation:mxWordIn .9s cubic-bezier(.16,1,.3,1) forwards;}
+@keyframes mxWordIn{to{opacity:1;transform:none;filter:blur(0);}}
+.mx-hero-copy{will-change:transform,opacity;}
+.mx-tilt{position:relative;width:100%;display:flex;align-items:center;justify-content:center;transform-style:preserve-3d;will-change:transform;}
+.mx-tilt .orbit-ring{transform:translateZ(-80px);}
+.mx-orbit{position:absolute;inset:6%;border-radius:50%;border:1px solid rgba(76,126,255,.32);transform-style:preserve-3d;pointer-events:none;
+  animation:mxOrbit 14s linear infinite;}
+.mx-orbit.b{inset:-4%;border-color:rgba(79,191,139,.22);animation-duration:22s;animation-direction:reverse;}
+.mx-orbit i{position:absolute;left:50%;top:-5px;width:10px;height:10px;margin-left:-5px;border-radius:50%;background:#7FA2FF;box-shadow:0 0 18px 4px rgba(76,126,255,.7);}
+.mx-orbit.b i{background:#7FE0B2;box-shadow:0 0 16px 3px rgba(79,191,139,.6);width:7px;height:7px;margin-left:-3.5px;top:-3.5px;}
+@keyframes mxOrbit{from{transform:rotateX(74deg) rotateY(-12deg) rotateZ(0);}to{transform:rotateX(74deg) rotateY(-12deg) rotateZ(360deg);}}
+.mx .logo-hero{position:relative;transform:translateZ(60px);}
+
+/* ---- Karten: erscheinen in 3D, kippen beim Darüberfahren ---- */
+.mx .reveal{transform:perspective(1000px) translateY(48px) rotateX(16deg) scale(.97);filter:blur(5px);transform-origin:50% 100%;
+  transition:opacity .9s cubic-bezier(.16,1,.3,1),transform 1.15s cubic-bezier(.16,1,.3,1),filter .9s ease;}
+.mx .reveal.in{transform:none;filter:none;}
+.mx .card{position:relative;}
+.mx .card.mx-tilting{transform:perspective(900px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)) translateY(-4px);
+  transition:transform .12s ease-out,box-shadow .2s ease,border-color .2s ease!important;transition-delay:0s!important;}
+.mx .card::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;transition:opacity .3s ease;
+  background:radial-gradient(420px circle at var(--gx,50%) var(--gy,50%),rgba(255,255,255,.07),transparent 45%);}
+.mx .card.mx-tilting::before{opacity:1;}
+.mx .reasons-grid .card::before{display:none;}
+
+/* ---- Überschriften leuchten Wort für Wort beim Scrollen auf ---- */
+.mx .mx-lit .mx-w{color:rgba(243,246,245,.22);transition:color .35s ease;}
+.mx .mx-lit .mx-w.on{color:var(--text);}
+.mx .mx-lit em .mx-w.on{color:var(--accent);}
+
+/* ---- Zahlen-Szene (bleibt stehen, während man scrollt) ---- */
+.mx-scene{position:relative;height:330vh;margin:10px 0 40px;}
+.mx-scene-sticky{position:sticky;top:0;height:100vh;height:100svh;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+.mx-stage{position:relative;width:min(900px,100%);height:min(520px,70vh);perspective:1400px;}
+.mx-ringwrap{position:absolute;left:50%;top:50%;width:min(660px,92vw,82vh);height:min(660px,92vw,82vh);transform:translate(-50%,-50%);pointer-events:none;}
+.mx-ringwrap svg{width:100%;height:100%;transform:rotate(-90deg);overflow:visible;}
+.mx-ringwrap circle{fill:none;stroke-width:1.5;}
+.mx-ringwrap .bgc{stroke:rgba(255,255,255,.07);}
+.mx-ringwrap .fgc{stroke:var(--accent);stroke-linecap:round;filter:drop-shadow(0 0 10px rgba(76,126,255,.7));}
+.mx-fact{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+  opacity:0;will-change:transform,opacity,filter;}
+.mx-kicker{font-weight:700;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:18px;}
+.mx-big{font-weight:800;font-size:clamp(44px,8vw,108px);letter-spacing:-0.045em;line-height:.95;color:var(--text);font-variant-numeric:tabular-nums;
+  background:linear-gradient(180deg,#FFFFFF 0%,#9DB6FF 100%);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.mx-lbl{margin-top:20px;font-size:clamp(15px,1.6vw,18px);color:var(--text-dim);max-width:34ch;}
+.mx-steps{position:absolute;bottom:7vh;left:50%;transform:translateX(-50%);display:flex;gap:8px;}
+.mx-steps i{width:28px;height:3px;border-radius:2px;background:rgba(255,255,255,.12);overflow:hidden;position:relative;}
+.mx-steps i b{position:absolute;inset:0;background:var(--accent);transform-origin:0 50%;transform:scaleX(0);}
+
+/* ---- Hinweis-Boxen: zoomen beim Scrollen heran, Rand mit wanderndem Licht ---- */
+.mx .callout-box{position:relative;will-change:transform,opacity;transform-origin:50% 60%;}
+.mx .callout-box::after{content:"";position:absolute;inset:-1px;border-radius:inherit;padding:1px;pointer-events:none;
+  background:conic-gradient(from var(--mxa,0deg),transparent 0deg,rgba(76,126,255,.85) 40deg,transparent 110deg,transparent 360deg);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;
+  animation:mxSpin 6s linear infinite;}
+@property --mxa{syntax:'<angle>';inherits:false;initial-value:0deg;}
+@keyframes mxSpin{to{--mxa:360deg;}}
+
+/* ---- Fragebogen: bewusst ruhig, ohne Hintergrund-Effekte ---- */
+body.funnel-active .mx-bg{display:none;}
+
+/* ---- Drei Gründe: die großen Zahlen zeigt die Szene darüber, die Karten nur noch Thema + Erklärung ---- */
+.mx .reasons-grid .num{display:none;}
+.mx .reasons-grid .reason-kicker{margin-bottom:10px;color:var(--text);font-size:13px;}
+
+/* ---- Vergleichstabelle baut sich auf ---- */
+.mx .cmp-body.mx-cmp .cmp-row-label{opacity:0;transform:translateX(-14px);}
+.mx .cmp-body.mx-cmp .cmp-icon{opacity:0;transform:scale(.3);}
+.mx .cmp-body.mx-cmp.mx-play .cmp-row-label{animation:mxSlideIn .6s cubic-bezier(.16,1,.3,1) forwards;}
+.mx .cmp-body.mx-cmp.mx-play .cmp-icon{animation:mxPop .55s cubic-bezier(.34,1.56,.64,1) forwards;}
+.mx .cmp-body.mx-cmp.mx-play .cmp-cell.is-highlight{animation:mxGlow 1.4s ease forwards;animation-delay:var(--mx-glow,1.6s);}
+@keyframes mxSlideIn{to{opacity:1;transform:none;}}
+@keyframes mxPop{to{opacity:1;transform:none;}}
+@keyframes mxGlow{0%{box-shadow:inset 0 0 0 0 rgba(76,126,255,0);}35%{box-shadow:inset 0 0 0 999px rgba(76,126,255,.16);}100%{box-shadow:inset 0 0 0 0 rgba(76,126,255,0);}}
+
+/* ---- Ablauf: Linie zeichnet sich durch die Schritte ---- */
+.mx .process-row{position:relative;}
+.mx-line{position:absolute;left:18px;top:17px;width:0;height:2px;background:rgba(255,255,255,.08);border-radius:2px;pointer-events:none;}
+.mx-line b{position:absolute;inset:0;background:linear-gradient(90deg,var(--accent),#7FA2FF);border-radius:2px;transform-origin:0 50%;transform:scaleX(var(--p,0));box-shadow:0 0 12px rgba(76,126,255,.6);}
+.mx .process-step::before{z-index:1;transition:background .4s ease,color .4s ease,box-shadow .4s ease;}
+.mx .process-step.mx-on::before{background:var(--accent);color:#fff;box-shadow:0 0 0 6px rgba(76,126,255,.16),0 0 24px rgba(76,126,255,.55);}
+.mx .process-step{transition:opacity .4s ease;}
+
+@media (max-width:900px){
+  .mx-line{left:17px;top:18px;width:2px;height:0;}
+  .mx .process-row{gap:28px;}
+  .mx .process-step{padding-top:6px;padding-left:56px;min-height:36px;}
+  .mx-line b{transform-origin:50% 0;transform:scaleY(var(--p,0));background:linear-gradient(180deg,var(--accent),#7FA2FF);}
+  .mx-floor{height:48%;opacity:.4;}
+  .mx-scene{height:300vh;}
+}
+@media (prefers-reduced-motion:reduce){
+  .mx-floor,.mx-orbit,.mx .callout-box::after{animation:none;}
+}

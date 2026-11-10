@@ -333,7 +333,7 @@
   var compareCols = [
     {label:'flexo.kapital', badge:'Direkt und unabhängig', highlight:true},
     {label:'Bank'},
-    {label:'Klassische Lebensversicherung'},
+    {label:'Klassische Lebens&shy;versicherung'},
     {label:'Onlinedepot'}
   ];
   var compareRows = [
