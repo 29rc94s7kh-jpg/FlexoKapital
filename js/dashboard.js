@@ -230,7 +230,7 @@
   }
   function cloneAppt(a){
     return { id: String(a.id), type: a.type === 'beratung' ? 'beratung' : 'erst', at: a.at || null, result: a.result || null,
-      eh: Number(a.eh) || 0, booked: Number(a.booked) || 0, efs: !!a.efs, resultAt: a.resultAt || null };
+      eh: Number(a.eh) || 0, booked: Number(a.booked) || 0, efs: !!a.efs, resultAt: a.resultAt || null, remindedAt: a.remindedAt || null };
   }
   function apptsOf(lead){
     if(Array.isArray(lead.appointments)) return lead.appointments.map(cloneAppt);
@@ -292,7 +292,7 @@
     var updates = {};
     Object.keys(extra).forEach(function(k){ updates[k] = extra[k]; });
     updates.appointments = list.map(function(a){
-      return { id: a.id, type: a.type, at: a.at || null, result: a.result || null, eh: a.eh || 0, booked: a.booked || 0, efs: !!a.efs, resultAt: a.resultAt || null };
+      return { id: a.id, type: a.type, at: a.at || null, result: a.result || null, eh: a.eh || 0, booked: a.booked || 0, efs: !!a.efs, resultAt: a.resultAt || null, remindedAt: a.remindedAt || null };
     });
     if(lead.appointment) updates.appointment = firebase.firestore.FieldValue.delete();
     var step = Promise.resolve();
@@ -302,6 +302,56 @@
       });
     }
     return step.then(function(){ return db.collection('leads').doc(docId).update(updates); });
+  }
+
+  // ---- WhatsApp-Erinnerung (öffnet WhatsApp mit fertigem Text, Raphael schickt selbst ab) ----
+  function waNumber(phone){
+    var p = String(phone || '').replace(/[^\d+]/g, '');
+    if(!p) return null;
+    if(p.indexOf('+') === 0) p = p.slice(1);
+    else if(p.indexOf('00') === 0) p = p.slice(2);
+    else if(p.indexOf('0') === 0) p = '43' + p.slice(1);
+    p = p.replace(/\D/g, '');
+    return p.length >= 8 ? p : null;
+  }
+  function waText(lead, a){
+    var d = tsToDate(a.at);
+    var diff = Math.round((dayStart(d) - dayStart(new Date())) / 864e5);
+    var dateTxt = d.toLocaleDateString('de-AT', { weekday: 'long' }) + ', ' + pad2(d.getDate()) + '.' + pad2(d.getMonth() + 1) + '.';
+    var when = diff === 0 ? 'heute um ' + hm(d) + ' Uhr'
+      : diff === 1 ? 'morgen, ' + dateTxt + ', um ' + hm(d) + ' Uhr'
+      : 'am ' + dateTxt + ', um ' + hm(d) + ' Uhr';
+    var what = a.type === 'beratung' ? 'unseren Beratungstermin' : 'unser Erstgespräch';
+    return 'Guten Tag ' + (lead.name || '') + ',\n' +
+      'ich darf Sie an ' + what + ' ' + when + ' erinnern. Geben Sie mir bitte kurz Bescheid, ob der Termin für Sie passt.\n\n' +
+      'Freundliche Grüße\nRaphael Frühwirth, flexo.kapital';
+  }
+  function waLink(lead, a){
+    var n = waNumber(lead.phone);
+    return n ? 'https://wa.me/' + n + '?text=' + encodeURIComponent(waText(lead, a)) : null;
+  }
+  // Erinnern sinnvoll für offene Termine, die noch nicht vorbei sind
+  function canRemind(a){ var d = a && tsToDate(a.at); return !!(d && !a.result && d > new Date()); }
+  function remindLinkHtml(lead, a, small){
+    var url = waLink(lead, a);
+    if(!url) return small ? '' : '<span class="wa-none">Keine Telefonnummer für WhatsApp</span>';
+    var done = tsToDate(a.remindedAt);
+    return '<a class="wa-btn' + (small ? ' small' : '') + (done ? ' done' : '') + '" href="' + url + '" target="_blank" rel="noopener" data-appt="' + escapeHtml(a.id) + '">' +
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2c-1.5 0-3-.4-4.3-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1-.7-.3-1.4-.7-2-1.3-.5-.5-1-1.1-1.3-1.7-.1-.2 0-.4.1-.5l.4-.4.3-.5v-.5l-.8-1.9c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.3-.2.3-.9.9-.9 2.2s.9 2.5 1 2.7c.1.2 1.8 2.8 4.4 3.9 1.6.7 2.3.8 3.1.6.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.2-1.2-.1-.1-.3-.2-.5-.3z"/></svg>' +
+      (done ? 'Erinnert ' + (dayStart(done).getTime() === dayStart(new Date()).getTime() ? 'heute' : formatDay(done)) : (small ? 'Erinnern' : 'Per WhatsApp erinnern')) + '</a>';
+  }
+  // Nach dem Klick als "erinnert" markieren (ob wirklich gesendet wurde, sieht das Dashboard nicht)
+  function markReminded(docId, apptId){
+    var doc = allLeadDocs.filter(function(d){ return d.id === docId; })[0];
+    if(!doc) return;
+    var lead = doc.data();
+    var list = apptsOf(lead).map(function(a){ if(a.id === apptId) a.remindedAt = tsNow(); return a; });
+    saveAppointments(docId, lead, list).catch(function(err){ console.error('Erinnerung konnte nicht vermerkt werden:', err); });
+  }
+  function wireRemindLinks(container, docId){
+    Array.prototype.forEach.call(container.querySelectorAll('.wa-btn'), function(a){
+      a.addEventListener('click', function(e){ e.stopPropagation(); markReminded(docId, a.getAttribute('data-appt')); });
+    });
   }
 
   function apptTypeOptions(sel){
@@ -335,6 +385,7 @@
         '<button type="button" class="btn ghost appt-save-btn">Ändern</button>' +
         '<button type="button" class="appt-del">Termin löschen</button>' +
         (open.efs ? '<span class="appt-sync ok">im EFS eingetragen</span>' : '') + '</div>' +
+        (canRemind(open) ? '<div class="appt-remind">' + remindLinkHtml(lead, open, false) + '</div>' : '') +
         '<div class="appt-result"><span class="appt-q' + (past ? ' due' : '') + '">Wie lief ' + (open.type === 'beratung' ? 'die Beratung' : 'das Erstgespräch') + '?</span>' +
         APPT_RESULTS[open.type].map(function(r){ return '<button type="button" class="outcome-btn appt-res" data-res="' + r[0] + '">' + r[1] + '</button>'; }).join('') + '</div>' +
         '<div class="appt-sub appt-eh-row" hidden><input type="text" class="appt-eh" inputmode="decimal" autocomplete="off" placeholder="z. B. 4,5"><span>EH</span>' +
@@ -761,6 +812,7 @@
           apptMsg.textContent = 'Nicht gespeichert: ' + (err && err.message || err) + '. Bitte nochmal versuchen.';
         };
         var hint = function(text){ apptMsg.className = 'appt-msg err'; apptMsg.textContent = text; };
+        wireRemindLinks(apptBlock, docId);
         var readAt = function(input){ var v = input && input.value; var d = v ? new Date(v) : null; return (d && !isNaN(d.getTime())) ? d : null; };
         var run = function(text, list, extra, after){
           setBusy(true, text);
@@ -938,8 +990,8 @@
     apptList.innerHTML = '';
     var now = new Date();
     items.concat(noDate).forEach(function(item){
-      var b = document.createElement('button');
-      b.type = 'button';
+      var b = document.createElement('div');
+      b.setAttribute('role', 'button'); b.tabIndex = 0;
       var meta, cls = 'callback-item appt-kind';
       if(!item.d){ meta = 'Datum fehlt'; cls += ' is-due'; }
       else {
@@ -949,10 +1001,14 @@
         else { meta = typ + ' · ' + formatApptWhen(item.d); if(dayStart(item.d).getTime() === dayStart(now).getTime()) cls += ' is-today'; }
       }
       b.className = cls;
+      var soon = item.d && canRemind(item.a) && Math.round((dayStart(item.d) - dayStart(now)) / 864e5) <= 1;
       b.innerHTML = '<span class="cb-name">' + escapeHtml(item.lead.name || '–') + '</span>' +
         '<span class="cb-meta">' + escapeHtml(meta) + '</span>' +
-        (item.lead.phone ? '<span class="cb-phone">' + escapeHtml(item.lead.phone) + '</span>' : '');
+        (item.lead.phone ? '<span class="cb-phone">' + escapeHtml(item.lead.phone) + '</span>' : '') +
+        (soon ? '<span class="cb-actions">' + remindLinkHtml(item.lead, item.a, true) + '</span>' : '');
       b.addEventListener('click', function(){ openLeadFromList(item.id); });
+      b.addEventListener('keydown', function(e){ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); openLeadFromList(item.id); } });
+      wireRemindLinks(b, item.id);
       apptList.appendChild(b);
     });
     apptSection.hidden = items.length + noDate.length === 0;
