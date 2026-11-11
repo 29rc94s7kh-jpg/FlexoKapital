@@ -415,3 +415,19 @@
   .ld .call-item{position:relative;padding-right:38px;}
   .ld .call-delete-btn{position:absolute;top:7px;right:8px;margin:0;}
   @media (max-width:900px){ .ld-hide-m{display:none;} }
+
+  /* Cal.com + Bestätigung */
+  .appt-remind{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+  .appt-remind:empty{display:none;}
+  .appt-cal{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--text-dim);margin-top:10px;cursor:pointer;user-select:none;}
+  .appt-sub .appt-cal{margin-top:0;}
+  .appt-cal input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;}
+  .appt-cal.off{color:var(--muted);font-size:12.5px;cursor:default;}
+  .cal-chip{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:99px;font-size:12.5px;font-weight:600;font-family:inherit;
+    border:1px solid var(--border-strong);background:none;color:var(--text-dim);text-decoration:none;cursor:pointer;}
+  .cal-chip.ok{color:var(--success);border-color:rgba(79,191,139,.35);background:rgba(79,191,139,.1);cursor:default;}
+  .cal-chip.link{color:var(--accent);border-color:rgba(76,126,255,.4);}
+  .cal-chip.book:hover,.cal-chip.link:hover{border-color:var(--accent);color:var(--text);}
+  .cal-chip[disabled]{opacity:.6;cursor:default;}
+  .wa-btn.confirm:not(.done){background:#25D366;color:#0C1116;border-color:#25D366;}
+  .wa-btn.confirm:not(.done):hover{background:#3BE07A;}

@@ -236,7 +236,8 @@
   }
   function cloneAppt(a){
     return { id: String(a.id), type: a.type === 'beratung' ? 'beratung' : 'erst', at: a.at || null, result: a.result || null,
-      eh: Number(a.eh) || 0, booked: Number(a.booked) || 0, efs: !!a.efs, resultAt: a.resultAt || null, remindedAt: a.remindedAt || null };
+      eh: Number(a.eh) || 0, booked: Number(a.booked) || 0, efs: !!a.efs, resultAt: a.resultAt || null, remindedAt: a.remindedAt || null,
+      calUid: a.calUid || null, meetUrl: a.meetUrl || null, dur: Number(a.dur) || 0, confirmedAt: a.confirmedAt || null };
   }
   function apptsOf(lead){
     if(Array.isArray(lead.appointments)) return lead.appointments.map(cloneAppt);
@@ -298,7 +299,8 @@
     var updates = {};
     Object.keys(extra).forEach(function(k){ updates[k] = extra[k]; });
     updates.appointments = list.map(function(a){
-      return { id: a.id, type: a.type, at: a.at || null, result: a.result || null, eh: a.eh || 0, booked: a.booked || 0, efs: !!a.efs, resultAt: a.resultAt || null, remindedAt: a.remindedAt || null };
+      return { id: a.id, type: a.type, at: a.at || null, result: a.result || null, eh: a.eh || 0, booked: a.booked || 0, efs: !!a.efs, resultAt: a.resultAt || null, remindedAt: a.remindedAt || null,
+        calUid: a.calUid || null, meetUrl: a.meetUrl || null, dur: Number(a.dur) || 0, confirmedAt: a.confirmedAt || null };
     });
     if(lead.appointment) updates.appointment = firebase.firestore.FieldValue.delete();
     var step = Promise.resolve();
@@ -330,6 +332,7 @@
     var what = a.type === 'beratung' ? 'unseren Beratungstermin' : 'unser Erstgespräch';
     return 'Guten Tag ' + (lead.name || '') + ',\n' +
       'ich darf Sie an ' + what + ' ' + when + ' erinnern. Geben Sie mir bitte kurz Bescheid, ob der Termin für Sie passt.\n\n' +
+      (a.meetUrl ? 'Link zum Videocall: ' + a.meetUrl + '\n\n' : '') +
       'Freundliche Grüße\nRaphael Frühwirth, flexo.kapital';
   }
   function waLink(lead, a){
@@ -347,17 +350,127 @@
       (done ? 'Erinnert ' + (dayStart(done).getTime() === dayStart(new Date()).getTime() ? 'heute' : formatDay(done)) : (small ? 'Erinnern' : 'Per WhatsApp erinnern')) + '</a>';
   }
   // Nach dem Klick als "erinnert" markieren (ob wirklich gesendet wurde, sieht das Dashboard nicht)
-  function markReminded(docId, apptId){
+  function markReminded(docId, apptId, field){
     var doc = allLeadDocs.filter(function(d){ return d.id === docId; })[0];
     if(!doc) return;
     var lead = doc.data();
-    var list = apptsOf(lead).map(function(a){ if(a.id === apptId) a.remindedAt = tsNow(); return a; });
+    var list = apptsOf(lead).map(function(a){ if(a.id === apptId) a[field || 'remindedAt'] = tsNow(); return a; });
     saveAppointments(docId, lead, list).catch(function(err){ console.error('Erinnerung konnte nicht vermerkt werden:', err); });
   }
   function wireRemindLinks(container, docId){
     Array.prototype.forEach.call(container.querySelectorAll('.wa-btn'), function(a){
-      a.addEventListener('click', function(e){ e.stopPropagation(); markReminded(docId, a.getAttribute('data-appt')); });
+      a.addEventListener('click', function(e){ e.stopPropagation(); markReminded(docId, a.getAttribute('data-appt'), a.getAttribute('data-mark') || 'remindedAt'); });
     });
+  }
+
+  // ---- Cal.com (optional per Häkchen) + Bestätigung per WhatsApp mit Kalender-Link ----
+  var apptNote = {};   // leadId -> {text, err, until}: Meldung im Termin-Bereich, überlebt Live-Updates
+  function setApptNote(docId, text, isErr, ms){
+    apptNote[docId] = { text: text, err: !!isErr, until: Date.now() + (ms || 8000) };
+    var el = leadsBody.querySelector('tr.lead-row[data-id="' + docId + '"] + tr .appt-msg');
+    if(el){ el.className = 'appt-msg' + (isErr ? ' err' : ''); el.textContent = text; }
+  }
+  function apptNoteHtml(docId){
+    var n = apptNote[docId];
+    if(!n || Date.now() > n.until) return '<div class="appt-msg" aria-live="polite"></div>';
+    return '<div class="appt-msg' + (n.err ? ' err' : '') + '" aria-live="polite">' + escapeHtml(n.text) + '</div>';
+  }
+  function calApi(action, payload){
+    var u = auth.currentUser;
+    if(!u) return Promise.reject(new Error('Nicht angemeldet'));
+    return u.getIdToken().then(function(tok){
+      var body = { action: action };
+      Object.keys(payload || {}).forEach(function(k){ body[k] = payload[k]; });
+      return fetch('/api/cal', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok }, body: JSON.stringify(body) });
+    }).then(function(r){
+      return r.json().catch(function(){ return {}; }).then(function(j){
+        if(!r.ok || j.error) throw new Error(j.error || ('Fehler ' + r.status + (r.status === 404 ? ' (Worker noch nicht deployt?)' : '')));
+        return j;
+      });
+    });
+  }
+  function freshLead(docId){ var d = allLeadDocs.filter(function(x){ return x.id === docId; })[0]; return d ? d.data() : null; }
+  // wartet, bis ein gerade gespeicherter Termin im Live-Stand angekommen ist
+  function waitForAppt(docId, apptId){
+    return new Promise(function(resolve, reject){
+      (function check(n){
+        var l = freshLead(docId);
+        if(l && apptsOf(l).some(function(a){ return a.id === apptId; })) return resolve(l);
+        if(n <= 0) return reject(new Error('Termin nicht gefunden'));
+        setTimeout(function(){ check(n - 1); }, 300);
+      })(20);
+    });
+  }
+  function patchAppt(docId, apptId, fields){
+    return waitForAppt(docId, apptId).then(function(l){
+      var list = apptsOf(l).map(function(a){ if(a.id === apptId) Object.keys(fields).forEach(function(k){ a[k] = fields[k]; }); return a; });
+      return saveAppointments(docId, l, list);
+    });
+  }
+  function calBook(docId, apptId){
+    setApptNote(docId, 'Wird in Cal.com gebucht …');
+    return waitForAppt(docId, apptId).then(function(l){
+      var a = apptsOf(l).filter(function(x){ return x.id === apptId; })[0];
+      if(!l.email) throw new Error('Für Cal.com braucht der Lead eine E-Mail-Adresse.');
+      var n = waNumber(l.phone);
+      return calApi('book', { type: a.type, start: tsToDate(a.at).toISOString(), name: l.name || '', email: l.email, phone: n ? '+' + n : '' });
+    }).then(function(r){
+      return patchAppt(docId, apptId, { calUid: r.uid, meetUrl: r.meetUrl || null, dur: r.dur || 0 }).then(function(){
+        setApptNote(docId, 'In Cal.com gebucht ✓' + (r.meetUrl ? '' : ' (kein Videolink zurückbekommen, Ort der Terminart in Cal.com prüfen)'), !r.meetUrl);
+      });
+    }).catch(function(err){ setApptNote(docId, 'Cal.com: ' + (err.message || err), true, 15000); });
+  }
+  function calReschedule(docId, apptId, uid){
+    setApptNote(docId, 'Wird in Cal.com verschoben …');
+    return waitForAppt(docId, apptId).then(function(l){
+      var a = apptsOf(l).filter(function(x){ return x.id === apptId; })[0];
+      return calApi('reschedule', { uid: uid, start: tsToDate(a.at).toISOString() });
+    }).then(function(r){
+      return patchAppt(docId, apptId, { calUid: r.uid || uid, meetUrl: r.meetUrl || null, dur: r.dur || 0 }).then(function(){ setApptNote(docId, 'In Cal.com verschoben ✓'); });
+    }).catch(function(err){ setApptNote(docId, 'Cal.com: ' + (err.message || err), true, 15000); });
+  }
+  function calCancel(docId, uid, reason){
+    if(!uid) return Promise.resolve();
+    setApptNote(docId, 'Wird in Cal.com abgesagt …');
+    return calApi('cancel', { uid: uid, reason: reason || 'Termin abgesagt' }).then(function(){
+      setApptNote(docId, 'In Cal.com abgesagt ✓');
+    }).catch(function(err){ setApptNote(docId, 'Cal.com: ' + (err.message || err) + ' – bitte in Cal.com selbst absagen.', true, 15000); });
+  }
+  function calCheckboxHtml(lead, cls){
+    if(!lead.email) return '<div class="appt-cal off">Cal.com: keine E-Mail-Adresse beim Lead</div>';
+    return '<label class="appt-cal"><input type="checkbox" class="' + cls + '"> Videocall über Cal.com buchen</label>';
+  }
+
+  // Kalender-Datei-Link (ohne persönliche Daten) und Bestätigungstext
+  function apptDuration(a){ return a.dur || (a.type === 'beratung' ? 60 : 15); }
+  function icsLink(a){
+    var d = tsToDate(a.at);
+    return 'https://www.flexokapital.at/api/kalender?s=' + encodeURIComponent(d.toISOString()) + '&d=' + apptDuration(a) + '&t=' + a.type +
+      (a.meetUrl ? '&v=' + encodeURIComponent(a.meetUrl) : '');
+  }
+  function confirmText(lead, a){
+    var d = tsToDate(a.at);
+    var dateTxt = d.toLocaleDateString('de-AT', { weekday: 'long' }) + ', ' + pad2(d.getDate()) + '.' + pad2(d.getMonth() + 1) + '.';
+    var what = a.type === 'beratung' ? 'unseren Beratungstermin' : 'unser Erstgespräch';
+    return 'Guten Tag ' + (lead.name || '') + ',\n' +
+      'vielen Dank für das Gespräch. Hiermit bestätige ich ' + what + ' am ' + dateTxt + ', um ' + hm(d) + ' Uhr' + (a.meetUrl ? ' per Videocall' : '') + '.\n\n' +
+      (a.meetUrl ? 'Link zum Videocall: ' + a.meetUrl + '\n' : '') +
+      'Termin im Kalender speichern: ' + icsLink(a) + '\n\n' +
+      'Freundliche Grüße\nRaphael Frühwirth, flexo.kapital';
+  }
+  function confirmLinkHtml(lead, a){
+    var n = waNumber(lead.phone);
+    if(!n) return '';
+    var done = tsToDate(a.confirmedAt);
+    return '<a class="wa-btn confirm' + (done ? ' done' : '') + '" href="https://wa.me/' + n + '?text=' + encodeURIComponent(confirmText(lead, a)) +
+      '" target="_blank" rel="noopener" data-appt="' + escapeHtml(a.id) + '" data-mark="confirmedAt">' + ICON_WA +
+      (done ? 'Bestätigt ' + (dayStart(done).getTime() === dayStart(new Date()).getTime() ? 'heute' : formatDay(done)) : 'Bestätigung per WhatsApp') + '</a>';
+  }
+  function calStatusHtml(lead, a){
+    if(a.calUid){
+      return '<span class="cal-chip ok">Cal.com ✓</span>' + (a.meetUrl ? '<a class="cal-chip link" href="' + escapeHtml(a.meetUrl) + '" target="_blank" rel="noopener">Videocall öffnen</a>' : '');
+    }
+    return lead.email ? '<button type="button" class="cal-chip book appt-cal-btn">Videocall über Cal.com buchen</button>' : '';
   }
 
   function apptTypeOptions(sel){
@@ -391,22 +504,23 @@
         '<button type="button" class="btn ghost appt-save-btn">Ändern</button>' +
         '<button type="button" class="appt-del">Termin löschen</button>' +
         (open.efs ? '<span class="appt-sync ok">im EFS eingetragen</span>' : '') + '</div>' +
-        (canRemind(open) ? '<div class="appt-remind">' + remindLinkHtml(lead, open, false) + '</div>' : '') +
+        '<div class="appt-remind">' + (canRemind(open) ? confirmLinkHtml(lead, open) + remindLinkHtml(lead, open, false) : '') + calStatusHtml(lead, open) + '</div>' +
         '<div class="appt-result"><span class="appt-q' + (past ? ' due' : '') + '">Wie lief ' + (open.type === 'beratung' ? 'die Beratung' : 'das Erstgespräch') + '?</span>' +
         APPT_RESULTS[open.type].map(function(r){ return '<button type="button" class="outcome-btn appt-res" data-res="' + r[0] + '">' + r[1] + '</button>'; }).join('') + '</div>' +
         '<div class="appt-sub appt-eh-row" hidden><input type="text" class="appt-eh" inputmode="decimal" autocomplete="off" placeholder="z. B. 4,5"><span>EH</span>' +
           '<button type="button" class="btn appt-eh-btn">Abschluss speichern</button></div>' +
         '<div class="appt-sub appt-next-row" hidden><span class="appt-sub-lbl">Beratung am</span><input type="datetime-local" class="appt-next-at">' +
-          '<button type="button" class="btn appt-next-btn">Beratung speichern</button></div>' +
+          '<button type="button" class="btn appt-next-btn">Beratung speichern</button>' + calCheckboxHtml(lead, 'appt-cal-next') + '</div>' +
         '</div>';
     } else {
       var hadBeratung = list.some(function(a){ return a.type === 'beratung' || a.result === 'beratung'; });
       out += '<div class="appt-new"><div class="appt-row"><select class="appt-type" title="Terminart">' + apptTypeOptions(hadBeratung ? 'beratung' : 'erst') + '</select>' +
         '<input type="datetime-local" class="appt-at"><button type="button" class="btn appt-add-btn">Termin speichern</button></div>' +
+        calCheckboxHtml(lead, 'appt-cal-cb') +
         (pendingApptId === docId ? '<div class="appt-hint">Datum und Uhrzeit eintragen. Danach wird der Status auf „Termin vereinbart“ gesetzt und der Termin im EFS-Dashboard eingetragen.</div>' : '') +
         '</div>';
     }
-    out += '<div class="appt-msg" aria-live="polite"></div></div>';
+    out += apptNoteHtml(docId) + '</div>';
     return out;
   }
 
@@ -640,6 +754,7 @@
             return;
           }
           job = saveAppointments(docId, lead, apptsOf(lead).filter(function(a){ return a.id !== opn.id; }), { status: newVal });
+          if(opn.calUid) job = job.then(function(){ return calCancel(docId, opn.calUid, 'Termin entfällt'); });
         } else {
           job = db.collection('leads').doc(docId).update({ status: newVal });
         }
@@ -874,9 +989,12 @@
             var d = readAt(newBox.querySelector('.appt-at'));
             if(!d) return hint('Bitte Datum und Uhrzeit eintragen.');
             var list = apptsOf(lead);
-            list.push({ id: newId(), type: newBox.querySelector('.appt-type').value, at: tsFrom(d), result: null, eh: 0, booked: 0, efs: false, resultAt: null });
+            var nid = newId();
+            var withCal = !!(newBox.querySelector('.appt-cal-cb') && newBox.querySelector('.appt-cal-cb').checked);
+            list.push({ id: nid, type: newBox.querySelector('.appt-type').value, at: tsFrom(d), result: null, eh: 0, booked: 0, efs: false, resultAt: null });
             run('Wird gespeichert und ins EFS übertragen…', list, (lead.status || '') !== 'termin' ? { status: 'termin' } : {}, function(){
               if(pendingApptId === docId) pendingApptId = null;
+              if(withCal) calBook(docId, nid);
             });
           });
         }
@@ -887,18 +1005,28 @@
           var oid = openBox.getAttribute('data-appt');
           var withOpen = function(fn){ var list = apptsOf(lead); list.forEach(function(a){ if(a.id === oid) fn(a); }); return list; };
           var ehRow = openBox.querySelector('.appt-eh-row'), nextRow = openBox.querySelector('.appt-next-row');
+          var calBtn = openBox.querySelector('.appt-cal-btn');
+          if(calBtn) calBtn.addEventListener('click', function(){ calBtn.disabled = true; calBook(docId, oid); });
           openBox.querySelector('.appt-save-btn').addEventListener('click', function(){
             var d = readAt(openBox.querySelector('.appt-at'));
             if(!d) return hint('Bitte Datum und Uhrzeit eintragen.');
             var type = openBox.querySelector('.appt-type').value;
-            run('Wird gespeichert…', withOpen(function(a){ a.at = tsFrom(d); a.type = type; }), (lead.status || '') !== 'termin' ? { status: 'termin' } : {});
+            var before = apptsOf(lead).filter(function(a){ return a.id === oid; })[0] || {};
+            var moved = before.at && tsToDate(before.at).getTime() !== d.getTime();
+            var typeChanged = before.type !== type;
+            run('Wird gespeichert…', withOpen(function(a){ a.at = tsFrom(d); a.type = type; if(typeChanged){ a.calUid = null; a.meetUrl = null; a.dur = 0; } if(moved || typeChanged){ a.confirmedAt = null; a.remindedAt = null; } }), (lead.status || '') !== 'termin' ? { status: 'termin' } : {}, function(){
+              if(!before.calUid) return;
+              if(typeChanged) calCancel(docId, before.calUid, 'Terminart geändert').then(function(){ calBook(docId, oid); });
+              else if(moved) calReschedule(docId, oid, before.calUid);
+            });
           });
           openBox.querySelector('.appt-del').addEventListener('click', function(){
             if(!confirm('Diesen Termin löschen? Er wird auch aus dem EFS entfernt.')) return;
+            var gone = apptsOf(lead).filter(function(a){ return a.id === oid; })[0] || {};
             var list = apptsOf(lead).filter(function(a){ return a.id !== oid; });
             var extra = {};
             if((lead.status || '') === 'termin' && !list.some(function(a){ return !a.result; })) extra.status = 'kontaktiert';
-            run('Wird gelöscht…', list, extra);
+            run('Wird gelöscht…', list, extra, function(){ if(gone.calUid) calCancel(docId, gone.calUid, 'Termin gelöscht'); });
           });
           Array.prototype.forEach.call(openBox.querySelectorAll('.appt-res'), function(btn){
             btn.addEventListener('click', function(){
@@ -909,7 +1037,10 @@
               if(res === 'abschluss'){ ehRow.querySelector('input').focus(); return; }
               if(res === 'beratung'){ nextRow.querySelector('input').focus(); return; }
               var status = res === 'kein_interesse' ? 'kein_interesse' : 'kontaktiert';
-              run('Wird gespeichert…', withOpen(function(a){ a.result = res; a.resultAt = tsNow(); }), { status: status });
+              var cur0 = apptsOf(lead).filter(function(a){ return a.id === oid; })[0] || {};
+              run('Wird gespeichert…', withOpen(function(a){ a.result = res; a.resultAt = tsNow(); }), { status: status }, function(){
+                if(res === 'abgesagt' && cur0.calUid && tsToDate(cur0.at) > new Date()) calCancel(docId, cur0.calUid, 'Vom Kunden abgesagt');
+              });
             });
           });
           var ehInput = ehRow.querySelector('.appt-eh');
@@ -925,8 +1056,10 @@
             var d = readAt(nextRow.querySelector('.appt-next-at'));
             if(!d) return hint('Bitte Datum und Uhrzeit für die Beratung eintragen.');
             var list = withOpen(function(a){ a.result = 'beratung'; a.resultAt = tsNow(); });
-            list.push({ id: newId(), type: 'beratung', at: tsFrom(d), result: null, eh: 0, booked: 0, efs: false, resultAt: null });
-            run('Beratung wird gespeichert und ins EFS übertragen…', list, { status: 'termin' });
+            var bid = newId();
+            var withCal = !!(nextRow.querySelector('.appt-cal-next') && nextRow.querySelector('.appt-cal-next').checked);
+            list.push({ id: bid, type: 'beratung', at: tsFrom(d), result: null, eh: 0, booked: 0, efs: false, resultAt: null });
+            run('Beratung wird gespeichert und ins EFS übertragen…', list, { status: 'termin' }, function(){ if(withCal) calBook(docId, bid); });
           });
         }
 
