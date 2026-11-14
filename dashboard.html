@@ -123,7 +123,7 @@
     </section>
 
     <div class="toolbar">
-      <input type="search" id="searchInput" placeholder="Suche nach Name, E-Mail oder Telefon&hellip;">
+      <input type="search" id="searchInput" placeholder="Name, E-Mail oder Telefonnummer suchen&hellip;">
       <select id="statusFilter">
         <option value="alle">Alle Status</option>
         <option value="">Neu</option>
@@ -134,9 +134,25 @@
       </select>
       <select id="sourceFilter">
         <option value="alle">Alle Quellen</option>
-        <option value="erstgespraech_funnel">Erstgespr&auml;ch-Funnel</option>
+        <option value="erstgespraech_funnel">Fragebogen</option>
         <option value="kontakt">Kontaktformular</option>
       </select>
+      <div class="date-filter" role="group" aria-label="Eingangsdatum">
+        <select id="dateFilter" title="Eingangsdatum">
+          <option value="alle">Alle Zeitr&auml;ume</option>
+          <option value="heute">Heute</option>
+          <option value="gestern">Gestern</option>
+          <option value="7tage">Letzte 7 Tage</option>
+          <option value="dieseWoche">Diese Woche</option>
+          <option value="letzteWoche">Letzte Woche</option>
+          <option value="dieserMonat">Dieser Monat</option>
+          <option value="letzterMonat">Letzter Monat</option>
+          <option value="eigen">Eigener Zeitraum</option>
+        </select>
+        <label>von <input type="date" id="dateFrom"></label>
+        <label>bis <input type="date" id="dateTo"></label>
+        <button type="button" class="date-reset" id="dateReset" title="Zeitraum zurücksetzen" hidden>&times;</button>
+      </div>
       <button type="button" class="btn ghost" id="trashToggleBtn">Papierkorb</button>
     </div>
 

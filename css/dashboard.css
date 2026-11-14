@@ -432,3 +432,19 @@
   .wa-btn.confirm:not(.done){background:#25D366;color:#0C1116;border-color:#25D366;}
   .wa-btn.confirm:not(.done):hover{background:#3BE07A;}
   .outcome-btn.active[data-outcome="nicht_abgehoben"]{background:rgba(245,166,35,.14);color:#F5A623;border-color:transparent;}
+
+  /* Zeitraum-Filter (Eingangsdatum) */
+  .date-filter{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .date-filter label{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);}
+  .date-filter input[type="date"]{background:var(--surface);border:1px solid var(--border-strong);border-radius:9px;color:var(--text);
+    font-family:inherit;font-size:13.5px;padding:8px 10px;color-scheme:dark;}
+  .date-filter input[type="date"]:focus{outline:none;border-color:var(--accent);}
+  .date-reset{background:none;border:1px solid var(--border-strong);border-radius:9px;color:var(--muted);font-size:18px;line-height:1;
+    width:36px;height:36px;cursor:pointer;}
+  .date-reset:hover{color:var(--text);border-color:var(--accent);}
+  @media (max-width:700px){
+    .date-filter{width:100%;}
+    .date-filter select{flex:1 1 100%;}
+    .date-filter label{flex:1 1 0;min-width:0;}
+    .date-filter input[type="date"]{flex:1;min-width:0;width:100%;padding:8px 6px;font-size:13px;}
+  }

@@ -660,10 +660,71 @@
     var term = searchInput.value.trim().toLowerCase();
     if(term){
       var hay = [lead.name, lead.email, lead.phone].map(function(v){ return (v || '').toLowerCase(); }).join(' ');
-      if(hay.indexOf(term) === -1) return false;
+      // Telefonnummer auch ohne Leerzeichen/Vorwahl finden (z. B. "0660123" findet "+43 660 123…")
+      var digits = term.replace(/\D/g, '');
+      var phoneDigits = String(lead.phone || '').replace(/\D/g, '');
+      var phoneHit = digits.length >= 4 && (phoneDigits.indexOf(digits) !== -1 || phoneDigits.indexOf(digits.replace(/^0/, '')) !== -1);
+      if(hay.indexOf(term) === -1 && !phoneHit) return false;
+    }
+
+    // Eingangsdatum von/bis
+    var range = dateRange();
+    if(range.from || range.to){
+      var c = tsToDate(lead.createdAt);
+      if(!c) return false;
+      if(range.from && c < range.from) return false;
+      if(range.to && c > range.to) return false;
     }
     return true;
   }
+
+  // ---- Zeitraum-Filter (Eingang der Leads) ----
+  var dateFilter = document.getElementById('dateFilter');
+  var dateFrom = document.getElementById('dateFrom');
+  var dateTo = document.getElementById('dateTo');
+  var dateReset = document.getElementById('dateReset');
+  function dateRange(){
+    return {
+      from: dateFrom.value ? new Date(dateFrom.value + 'T00:00:00') : null,
+      to: dateTo.value ? new Date(dateTo.value + 'T23:59:59.999') : null
+    };
+  }
+  function presetDates(key){
+    var t = dayStart(new Date());
+    var add = function(d, n){ var x = new Date(d.getTime()); x.setDate(x.getDate() + n); return x; };
+    var monday = add(t, -((t.getDay() + 6) % 7));
+    switch(key){
+      case 'heute': return [t, t];
+      case 'gestern': return [add(t, -1), add(t, -1)];
+      case '7tage': return [add(t, -6), t];
+      case 'dieseWoche': return [monday, t];
+      case 'letzteWoche': return [add(monday, -7), add(monday, -1)];
+      case 'dieserMonat': return [new Date(t.getFullYear(), t.getMonth(), 1), t];
+      case 'letzterMonat': return [new Date(t.getFullYear(), t.getMonth() - 1, 1), new Date(t.getFullYear(), t.getMonth(), 0)];
+      default: return null;
+    }
+  }
+  function refreshDateReset(){ dateReset.hidden = !dateFrom.value && !dateTo.value; }
+  dateFilter.addEventListener('change', function(){
+    var r = presetDates(dateFilter.value);
+    if(dateFilter.value === 'alle'){ dateFrom.value = ''; dateTo.value = ''; }
+    else if(r){ dateFrom.value = ymd(r[0]); dateTo.value = ymd(r[1]); }
+    else if(dateFilter.value === 'eigen' && !dateFrom.value){ dateFrom.focus(); }
+    refreshDateReset();
+    renderTable(allLeadDocs);
+  });
+  [dateFrom, dateTo].forEach(function(inp){
+    inp.addEventListener('change', function(){
+      dateFilter.value = (dateFrom.value || dateTo.value) ? 'eigen' : 'alle';
+      refreshDateReset();
+      renderTable(allLeadDocs);
+    });
+  });
+  dateReset.addEventListener('click', function(){
+    dateFrom.value = ''; dateTo.value = ''; dateFilter.value = 'alle';
+    refreshDateReset();
+    renderTable(allLeadDocs);
+  });
 
   function renderTable(docs){
     var activeDocs = docs.filter(function(doc){ return !doc.data().deleted; });
