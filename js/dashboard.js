@@ -214,12 +214,13 @@
   //   booked = im EFS gebuchte EH (Änderungen buchen nur die Differenz), efs = steht gerade im EFS
   // Älteres Format (bis 09.11.2026): ein einzelnes lead.appointment, wird beim Lesen übernommen
   // und beim nächsten Speichern ersetzt.
-  var APPT_TYPES = { erst: 'Erstgespräch', beratung: 'Beratung' };
-  var APPT_RESULTS = {
-    erst: [['beratung', 'Beratung vereinbart'], ['kein_interesse', 'Kein Interesse'], ['noshow', 'Nicht erschienen'], ['abgesagt', 'Abgesagt']],
-    beratung: [['abschluss', 'Abschluss'], ['kein_abschluss', 'Kein Abschluss'], ['noshow', 'Nicht erschienen'], ['abgesagt', 'Abgesagt']]
-  };
-  var RESULT_LABEL = { beratung: 'Beratung vereinbart', kein_interesse: 'Kein Interesse', noshow: 'Nicht erschienen', abgesagt: 'Abgesagt', abschluss: 'Abschluss', kein_abschluss: 'Kein Abschluss' };
+  // Seit 14.11.2026: "erst" = Kennenlerngespräch (eigentliche Beratung, Details schon am Telefon),
+  // "beratung" = Folgeberatung (zweiter und weitere Termine). Interne Schlüssel bleiben gleich,
+  // damit Verlauf, EFS und Cal.com mit den älteren Daten weiter funktionieren.
+  var APPT_TYPES = { erst: 'Kennenlerngespräch', beratung: 'Folgeberatung' };
+  var APPT_OUTCOMES = [['abschluss', 'Abschluss'], ['beratung', 'Folgeberatung vereinbart'], ['kein_abschluss', 'Kein Abschluss'], ['noshow', 'Nicht erschienen'], ['abgesagt', 'Abgesagt']];
+  var APPT_RESULTS = { erst: APPT_OUTCOMES, beratung: APPT_OUTCOMES };
+  var RESULT_LABEL = { beratung: 'Folgeberatung vereinbart', kein_interesse: 'Kein Interesse', noshow: 'Nicht erschienen', abgesagt: 'Abgesagt', abschluss: 'Abschluss', kein_abschluss: 'Kein Abschluss' };
   var RESULT_TONE = { beratung: 'good', abschluss: 'good', kein_interesse: 'bad', kein_abschluss: 'bad', noshow: 'bad', abgesagt: 'warn' };
   function pad2(n){ return ('0' + n).slice(-2); }
   function ymd(d){ return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
@@ -292,7 +293,7 @@
       var customerDelta = (newBooked > 0 ? 1 : 0) - (prevBooked > 0 ? 1 : 0);
       if(efsChanged || unitsDelta || customerDelta){
         ops.push({ leadId: efsKey(docId, id), unitsDelta: unitsDelta, customerDelta: customerDelta,
-          termin: wantEfs ? { date: ymd(d), time: hm(d), label: lead.name || 'Lead', type: n.type === 'beratung' ? 'beratung' : 'analyse' } : null });
+          termin: wantEfs ? { date: ymd(d), time: hm(d), label: lead.name || 'Lead', type: 'beratung' } : null });
       }
       if(n){ n.booked = newBooked; n.eh = newBooked; n.efs = wantEfs; }
     });
@@ -322,18 +323,18 @@
     p = p.replace(/\D/g, '');
     return p.length >= 8 ? p : null;
   }
+  // WhatsApp-Erinnerung (Tag vorher / am Tag): Link nochmal schicken, Vorfreude statt "Erinnerung"
   function waText(lead, a){
     var d = tsToDate(a.at);
     var diff = Math.round((dayStart(d) - dayStart(new Date())) / 864e5);
     var dateTxt = d.toLocaleDateString('de-AT', { weekday: 'long' }) + ', ' + pad2(d.getDate()) + '.' + pad2(d.getMonth() + 1) + '.';
     var when = diff === 0 ? 'heute um ' + hm(d) + ' Uhr'
-      : diff === 1 ? 'morgen, ' + dateTxt + ', um ' + hm(d) + ' Uhr'
+      : diff === 1 ? 'morgen um ' + hm(d) + ' Uhr'
       : 'am ' + dateTxt + ', um ' + hm(d) + ' Uhr';
-    var what = a.type === 'beratung' ? 'unseren Beratungstermin' : 'unser Erstgespräch';
     return 'Guten Tag ' + (lead.name || '') + ',\n' +
-      'ich darf Sie an ' + what + ' ' + when + ' erinnern. Geben Sie mir bitte kurz Bescheid, ob der Termin für Sie passt.\n\n' +
-      (a.meetUrl ? 'Link zum Videocall: ' + a.meetUrl + '\n\n' : '') +
-      'Freundliche Grüße\nRaphael Frühwirth, flexo.kapital';
+      (a.meetUrl ? 'hier nochmals der Link zu unserem Videocall: ' + a.meetUrl + '\n' : '') +
+      (a.meetUrl ? 'Ich freue mich auf unser Gespräch ' : 'ich freue mich auf unser Gespräch ') + when + '.\n\n' +
+      'Mit freundlichen Grüßen\nRaphael Frühwirth, flexo.kapital';
   }
   function waLink(lead, a){
     var n = waNumber(lead.phone);
@@ -442,7 +443,7 @@
   }
 
   // Kalender-Datei-Link (ohne persönliche Daten) und Bestätigungstext
-  function apptDuration(a){ return a.dur || (a.type === 'beratung' ? 60 : 15); }
+  function apptDuration(a){ return a.dur || 30; }
   function icsLink(a){
     var d = tsToDate(a.at);
     return 'https://www.flexokapital.at/api/kalender?s=' + encodeURIComponent(d.toISOString()) + '&d=' + apptDuration(a) + '&t=' + a.type +
@@ -451,12 +452,12 @@
   function confirmText(lead, a){
     var d = tsToDate(a.at);
     var dateTxt = d.toLocaleDateString('de-AT', { weekday: 'long' }) + ', ' + pad2(d.getDate()) + '.' + pad2(d.getMonth() + 1) + '.';
-    var what = a.type === 'beratung' ? 'unseren Beratungstermin' : 'unser Erstgespräch';
+    var what = a.type === 'beratung' ? 'unsere Folgeberatung' : 'unser Kennenlerngespräch';
     return 'Guten Tag ' + (lead.name || '') + ',\n' +
       'vielen Dank für das Gespräch. Hiermit bestätige ich ' + what + ' am ' + dateTxt + ', um ' + hm(d) + ' Uhr' + (a.meetUrl ? ' per Videocall' : '') + '.\n\n' +
       (a.meetUrl ? 'Link zum Videocall: ' + a.meetUrl + '\n' : '') +
       'Termin im Kalender speichern: ' + icsLink(a) + '\n\n' +
-      'Freundliche Grüße\nRaphael Frühwirth, flexo.kapital';
+      'Mit freundlichen Grüßen\nRaphael Frühwirth, flexo.kapital';
   }
   function confirmLinkHtml(lead, a){
     var n = waNumber(lead.phone);
@@ -505,15 +506,16 @@
         '<button type="button" class="appt-del">Termin löschen</button>' +
         (open.efs ? '<span class="appt-sync ok">im EFS eingetragen</span>' : '') + '</div>' +
         '<div class="appt-remind">' + (canRemind(open) ? confirmLinkHtml(lead, open) + remindLinkHtml(lead, open, false) : '') + calStatusHtml(lead, open) + '</div>' +
-        '<div class="appt-result"><span class="appt-q' + (past ? ' due' : '') + '">Wie lief ' + (open.type === 'beratung' ? 'die Beratung' : 'das Erstgespräch') + '?</span>' +
+        '<div class="appt-result"><span class="appt-q' + (past ? ' due' : '') + '">Wie lief ' + (open.type === 'beratung' ? 'die Folgeberatung' : 'das Kennenlerngespräch') + '?</span>' +
         APPT_RESULTS[open.type].map(function(r){ return '<button type="button" class="outcome-btn appt-res" data-res="' + r[0] + '">' + r[1] + '</button>'; }).join('') + '</div>' +
         '<div class="appt-sub appt-eh-row" hidden><input type="text" class="appt-eh" inputmode="decimal" autocomplete="off" placeholder="z. B. 4,5"><span>EH</span>' +
           '<button type="button" class="btn appt-eh-btn">Abschluss speichern</button></div>' +
-        '<div class="appt-sub appt-next-row" hidden><span class="appt-sub-lbl">Beratung am</span><input type="datetime-local" class="appt-next-at">' +
+        '<div class="appt-sub appt-next-row" hidden><span class="appt-sub-lbl">Folgeberatung am</span><input type="datetime-local" class="appt-next-at">' +
           '<button type="button" class="btn appt-next-btn">Beratung speichern</button>' + calCheckboxHtml(lead, 'appt-cal-next') + '</div>' +
         '</div>';
     } else {
-      var hadBeratung = list.some(function(a){ return a.type === 'beratung' || a.result === 'beratung'; });
+      // Hat schon ein Gespräch stattgefunden, ist der nächste Termin eine Folgeberatung
+      var hadBeratung = list.some(function(a){ return a.result === 'beratung' || a.result === 'abschluss' || a.result === 'kein_abschluss' || a.result === 'kein_interesse'; });
       out += '<div class="appt-new"><div class="appt-row"><select class="appt-type" title="Terminart">' + apptTypeOptions(hadBeratung ? 'beratung' : 'erst') + '</select>' +
         '<input type="datetime-local" class="appt-at"><button type="button" class="btn appt-add-btn">Termin speichern</button></div>' +
         calCheckboxHtml(lead, 'appt-cal-cb') +
@@ -542,7 +544,7 @@
 
   var justAddedCall = null;   // Lead, bei dem gerade ein Anruf angelegt wurde (neuester Anruf wird kurz hervorgehoben)
   var noteSavedAt = {};       // leadId -> Zeitpunkt der letzten automatischen Notiz-Speicherung
-  var CALL_OUTCOMES = [['abgehoben', 'Abgehoben'], ['termin', 'Termin vereinbart'], ['kein_interesse', 'Kein Interesse']];
+  var CALL_OUTCOMES = [['nicht_abgehoben', 'Nicht abgehoben'], ['abgehoben', 'Abgehoben'], ['termin', 'Termin vereinbart'], ['kein_interesse', 'Kein Interesse']];
 
   function buildCallsHtml(lead, docId){
     var calls = lead.calls || [];
@@ -710,7 +712,7 @@
         })();
       tr.innerHTML =
         '<td>' + formatDate(lead.createdAt) + '</td>' +
-        '<td><span class="badge ' + (isFunnel ? 'funnel' : 'kontakt') + '">' + (isFunnel ? 'Erstgespräch' : 'Kontakt') + '</span></td>' +
+        '<td><span class="badge ' + (isFunnel ? 'funnel' : 'kontakt') + '">' + (isFunnel ? 'Fragebogen' : 'Kontakt') + '</span></td>' +
         '<td class="cell-name">' + escapeHtml(lead.name || '–') + marks + '</td>' +
         '<td class="cell-mail">' + escapeHtml(lead.email || '–') + '</td>' +
         '<td>' + escapeHtml(lead.phone || '–') + '</td>' +
@@ -950,7 +952,7 @@
               updates.status = 'termin';
             } else if(outcome === 'kein_interesse'){
               if(currentStatus !== 'termin'){ updates.status = 'kein_interesse'; }
-            } else if(outcome === 'abgehoben'){
+            } else if(outcome === 'abgehoben' || outcome === 'nicht_abgehoben'){
               if(currentStatus === ''){ updates.status = 'kontaktiert'; }
             }
             db.collection('leads').doc(docId).update(updates).catch(function(err){
@@ -1036,7 +1038,7 @@
               nextRow.hidden = res !== 'beratung';
               if(res === 'abschluss'){ ehRow.querySelector('input').focus(); return; }
               if(res === 'beratung'){ nextRow.querySelector('input').focus(); return; }
-              var status = res === 'kein_interesse' ? 'kein_interesse' : 'kontaktiert';
+              var status = (res === 'kein_interesse' || res === 'kein_abschluss') ? 'kein_interesse' : 'kontaktiert';
               var cur0 = apptsOf(lead).filter(function(a){ return a.id === oid; })[0] || {};
               run('Wird gespeichert…', withOpen(function(a){ a.result = res; a.resultAt = tsNow(); }), { status: status }, function(){
                 if(res === 'abgesagt' && cur0.calUid && tsToDate(cur0.at) > new Date()) calCancel(docId, cur0.calUid, 'Vom Kunden abgesagt');
@@ -1054,12 +1056,12 @@
           ehInput.addEventListener('keydown', function(e){ if(e.key === 'Enter'){ e.preventDefault(); saveEh(); } });
           nextRow.querySelector('.appt-next-btn').addEventListener('click', function(){
             var d = readAt(nextRow.querySelector('.appt-next-at'));
-            if(!d) return hint('Bitte Datum und Uhrzeit für die Beratung eintragen.');
+            if(!d) return hint('Bitte Datum und Uhrzeit für die Folgeberatung eintragen.');
             var list = withOpen(function(a){ a.result = 'beratung'; a.resultAt = tsNow(); });
             var bid = newId();
             var withCal = !!(nextRow.querySelector('.appt-cal-next') && nextRow.querySelector('.appt-cal-next').checked);
             list.push({ id: bid, type: 'beratung', at: tsFrom(d), result: null, eh: 0, booked: 0, efs: false, resultAt: null });
-            run('Beratung wird gespeichert und ins EFS übertragen…', list, { status: 'termin' }, function(){ if(withCal) calBook(docId, bid); });
+            run('Folgeberatung wird gespeichert und ins EFS übertragen…', list, { status: 'termin' }, function(){ if(withCal) calBook(docId, bid); });
           });
         }
 
@@ -1488,8 +1490,11 @@
       if(since && (!c || c.getTime() < since)) return false;
       return qualityMatches(doc, filter);
     });
-    var n = { leads: 0, called: 0, reached: 0, erstSet: 0, erstHeld: 0, berSet: 0, berHeld: 0, won: 0, erstOpen: 0, berOpen: 0 };
-    var k = { erstOk: 0, erstNo: 0, erstCancel: 0, berOk: 0, berNo: 0, berCancel: 0, kiPhone: 0, kiErst: 0, noAbschluss: 0, unreachable: 0, eh: 0 };
+    // Seit 14.11.2026: ein Termin = Kennenlerngespräch (intern 'erst'), weitere Termine = Folgeberatung ('beratung').
+    // Abschluss kann aus beiden kommen. Ältere Daten (Erstgespräch/Beratung) werden genauso gezählt.
+    var HELD = { beratung: 1, kein_interesse: 1, abschluss: 1, kein_abschluss: 1 };
+    var n = { leads: 0, called: 0, reached: 0, erstSet: 0, erstHeld: 0, won: 0, erstOpen: 0, berSet: 0, berHeld: 0 };
+    var k = { erstOk: 0, erstNo: 0, erstCancel: 0, berOk: 0, berNo: 0, berCancel: 0, kiPhone: 0, kiAfter: 0, unreachable: 0, eh: 0 };
     docs.forEach(function(doc){
       var lead = doc.data();
       var appts = apptsOf(lead);
@@ -1498,33 +1503,24 @@
       var calls = lead.calls || [];
       var st = lead.status || '';
       var reached = wasReached(lead) || appts.length > 0 || st === 'termin' || st === 'kein_interesse' || st === 'abschluss';
-      var erstSet = erst.length > 0 || ber.length > 0 || (st === 'termin' && !appts.length);
-      var erstHeld = erst.some(function(a){ return a.result === 'beratung' || a.result === 'kein_interesse'; }) || ber.length > 0;
-      var berSet = ber.length > 0 || erst.some(function(a){ return a.result === 'beratung'; });
-      var berHeld = ber.some(function(a){ return a.result === 'abschluss' || a.result === 'kein_abschluss'; });
-      var won = ber.some(function(a){ return a.result === 'abschluss'; });
+      var erstSet = appts.length > 0 || (st === 'termin' && !appts.length);
+      var erstHeld = erst.some(function(a){ return HELD[a.result]; }) || ber.length > 0;
+      var won = appts.some(function(a){ return a.result === 'abschluss'; });
       n.leads++;
       if(calls.length || reached) n.called++;
       if(reached) n.reached++;
       if(erstSet) n.erstSet++;
       if(erstHeld) n.erstHeld++;
-      if(berSet) n.berSet++;
-      if(berHeld) n.berHeld++;
       if(won) n.won++;
-      var hasOpen = function(arr){ return arr.some(function(a){ return !a.result; }); };
-      if(erstSet && !erstHeld && (hasOpen(erst) || (st === 'termin' && !appts.length))) n.erstOpen++;
-      if(berSet && !berHeld && hasOpen(ber)) n.berOpen++;
-      erst.forEach(function(a){
-        if(a.result === 'beratung' || a.result === 'kein_interesse') k.erstOk++;
-        else if(a.result === 'noshow') k.erstNo++;
-        else if(a.result === 'abgesagt') k.erstCancel++;
-        if(a.result === 'kein_interesse') k.kiErst++;
-      });
-      ber.forEach(function(a){
-        if(a.result === 'abschluss' || a.result === 'kein_abschluss') k.berOk++;
-        else if(a.result === 'noshow') k.berNo++;
-        else if(a.result === 'abgesagt') k.berCancel++;
-        if(a.result === 'kein_abschluss') k.noAbschluss++;
+      if(ber.length) n.berSet++;
+      if(ber.some(function(a){ return HELD[a.result]; })) n.berHeld++;
+      if(erstSet && !erstHeld && (erst.some(function(a){ return !a.result; }) || (st === 'termin' && !appts.length))) n.erstOpen++;
+      appts.forEach(function(a){
+        var isErst = a.type === 'erst';
+        if(HELD[a.result]){ if(isErst) k.erstOk++; else k.berOk++; }
+        else if(a.result === 'noshow'){ if(isErst) k.erstNo++; else k.berNo++; }
+        else if(a.result === 'abgesagt'){ if(isErst) k.erstCancel++; else k.berCancel++; }
+        if(a.result === 'kein_interesse' || a.result === 'kein_abschluss') k.kiAfter++;
         if(a.result === 'abschluss') k.eh += Number(a.booked) || 0;
       });
       var kiCall = calls.some(function(c){ return c.outcome === 'kein_interesse'; });
@@ -1536,10 +1532,8 @@
       ['leads', 'Leads', 'im Zeitraum eingegangen'],
       ['called', 'Angerufen', 'mindestens ein Anruf'],
       ['reached', 'Erreicht', 'mindestens einmal abgehoben'],
-      ['erstSet', 'Erstgespräch vereinbart', n.erstOpen ? 'davon ' + n.erstOpen + ' noch offen' : ''],
-      ['erstHeld', 'Erstgespräch stattgefunden', ''],
-      ['berSet', 'Beratung vereinbart', n.berOpen ? 'davon ' + n.berOpen + ' noch offen' : ''],
-      ['berHeld', 'Beratung stattgefunden', ''],
+      ['erstSet', 'Kennenlerngespräch vereinbart', n.erstOpen ? 'davon ' + n.erstOpen + ' noch offen' : ''],
+      ['erstHeld', 'Kennenlerngespräch stattgefunden', ''],
       ['won', 'Abschluss', fmtEh(k.eh) + ' EH']
     ];
     var max = Math.max(n.leads, 1), prev = null, html = '';
@@ -1558,10 +1552,10 @@
 
     var erstAll = k.erstOk + k.erstNo + k.erstCancel, berAll = k.berOk + k.berNo + k.berCancel;
     var tiles = [
-      ['Show-up Erstgespräch', pct(k.erstOk, erstAll), erstAll ? k.erstOk + ' von ' + erstAll + ' stattgefunden' : 'noch keine Ergebnisse'],
-      ['Show-up Beratung', pct(k.berOk, berAll), berAll ? k.berOk + ' von ' + berAll + ' stattgefunden' : 'noch keine Ergebnisse'],
+      ['Show-up Kennenlerngespräch', pct(k.erstOk, erstAll), erstAll ? k.erstOk + ' von ' + erstAll + ' stattgefunden' : 'noch keine Ergebnisse'],
+      ['Folgeberatungen', String(n.berSet), n.berSet ? n.berHeld + ' stattgefunden · Show-up ' + pct(k.berOk, berAll) : 'noch keine'],
       ['Ausfälle', String(k.erstNo + k.berNo + k.erstCancel + k.berCancel), (k.erstNo + k.berNo) + ' nicht erschienen · ' + (k.erstCancel + k.berCancel) + ' abgesagt'],
-      ['Kein Interesse', String(k.kiPhone + k.kiErst + k.noAbschluss), k.kiPhone + ' am Telefon · ' + k.kiErst + ' nach Erstgespräch · ' + k.noAbschluss + ' nach Beratung'],
+      ['Kein Interesse', String(k.kiPhone + k.kiAfter), k.kiPhone + ' am Telefon · ' + k.kiAfter + ' nach dem Gespräch'],
       ['Nicht erreichbar', String(k.unreachable), MAX_CALLS + ' Anrufe ohne Erfolg'],
       ['EH pro Abschluss', n.won ? fmtEh(k.eh / n.won) : '–', n.won + (n.won === 1 ? ' Abschluss' : ' Abschlüsse')],
       ['EH pro Lead', n.leads ? fmtEh(k.eh / n.leads) : '–', 'Wert eines Leads im Schnitt']

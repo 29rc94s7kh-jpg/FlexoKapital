@@ -431,3 +431,4 @@
   .cal-chip[disabled]{opacity:.6;cursor:default;}
   .wa-btn.confirm:not(.done){background:#25D366;color:#0C1116;border-color:#25D366;}
   .wa-btn.confirm:not(.done):hover{background:#3BE07A;}
+  .outcome-btn.active[data-outcome="nicht_abgehoben"]{background:rgba(245,166,35,.14);color:#F5A623;border-color:transparent;}

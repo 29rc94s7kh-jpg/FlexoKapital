@@ -95,7 +95,7 @@ async function eventTypes(env) {
   typeCache = { list, until: Date.now() + 10 * 60 * 1000 };
   return list;
 }
-// Terminart per Name finden: "Erstgespräch"/"Kennenlerngespräch" bzw. "Beratung" im Titel oder in der Adresse
+// Terminart per Name finden: "Kennenlerngespräch" (oder "Erstgespräch") bzw. "Folgeberatung" (oder "Beratung") im Titel oder in der Adresse
 async function eventTypeFor(env, type) {
   const list = await eventTypes(env);
   // Erstgespräch: auch "Kennenlerngespräch" zählt dazu
@@ -103,7 +103,7 @@ async function eventTypeFor(env, type) {
   const hits = list.filter(function (t) { return want.test(t.title) || want.test(t.slug); });
   hits.sort(function (a, b) { return (a.hidden ? 1 : 0) - (b.hidden ? 1 : 0); });
   if (!hits.length) {
-    throw new Error('In Cal.com gibt es keine Terminart mit „' + (type === 'beratung' ? 'Beratung' : 'Erstgespräch') + '“ im Namen. Vorhanden: ' +
+    throw new Error('In Cal.com gibt es keine Terminart mit „' + (type === 'beratung' ? 'Folgeberatung' : 'Kennenlerngespräch') + '“ im Namen. Vorhanden: ' +
       (list.map(function (t) { return t.title; }).join(', ') || 'keine'));
   }
   return hits[0];
@@ -186,7 +186,7 @@ export function handleIcs(request) {
     const v = new URL(q.get('v') || '');
     if (v.protocol === 'https:' && VIDEO_HOSTS.test(v.hostname)) video = v.toString();
   } catch (e) { video = ''; }
-  const title = (type === 'beratung' ? 'Beratung' : 'Erstgespräch') + ' mit flexo.kapital';
+  const title = (type === 'beratung' ? 'Folgeberatung' : 'Kennenlerngespräch') + ' mit flexo.kapital';
   const desc = (video ? 'Link zum Videocall: ' + video + '\n\n' : '') + 'Raphael Frühwirth, flexo.kapital\nhttps://www.flexokapital.at';
   const lines = [
     'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//flexo.kapital//Termin//DE', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
