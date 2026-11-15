@@ -418,9 +418,13 @@
   <!-- ============ ERSTGESPRÄCH (FUNNEL) ============ -->
   <section class="page" id="page-erstgespraech" hidden>
     <div class="wrap funnel-wrap">
+      <div class="funnel-intro" id="funnelIntro">
+        <p class="funnel-intro-title">Kostenloses Erstgespräch</p>
+        <p class="funnel-intro-sub">In ca. 1 Minute angefragt &ndash; unverbindlich und persönlich.</p>
+      </div>
       <div class="funnel-progress">
         <div class="funnel-progress-track"><div class="funnel-progress-fill" id="funnelFill"></div></div>
-        <div class="funnel-progress-label" id="funnelLabel">Schritt 1 von 10</div>
+        <div class="funnel-progress-label" id="funnelLabel" aria-live="polite"></div>
       </div>
 
       <div class="funnel-stage" id="funnelStage">
@@ -431,15 +435,16 @@
         <div class="funnel-step" data-step="5"></div>
         <div class="funnel-step" data-step="6"></div>
         <div class="funnel-step" data-step="7"></div>
-        <div class="funnel-step" data-step="8"></div>
 
-        <div class="funnel-step" data-step="9">
+        <div class="funnel-step" data-step="8">
           <div class="funnel-q">
-            <span class="funnel-eyebrow">09 / 10</span>
             <h2>Wie erreichen wir dich?</h2>
           </div>
           <form class="funnel-form" id="funnelContactForm" novalidate>
-            <div class="field"><label for="funnelName">Name</label><input type="text" id="funnelName" name="name" autocomplete="name" required></div>
+            <div class="field-pair">
+              <div class="field"><label for="funnelFirstName">Vorname</label><input type="text" id="funnelFirstName" name="vorname" autocomplete="given-name" required></div>
+              <div class="field"><label for="funnelLastName">Nachname</label><input type="text" id="funnelLastName" name="nachname" autocomplete="family-name" required></div>
+            </div>
             <div class="field"><label for="funnelEmail">E-Mail</label><input type="email" id="funnelEmail" name="email" autocomplete="email" required></div>
             <div class="field"><label for="funnelPhone">Telefon</label><input type="tel" id="funnelPhone" name="phone" autocomplete="tel" required></div>
             <div class="field"><label for="funnelNote">Nachricht (optional)</label><textarea id="funnelNote" name="note" rows="3" placeholder="Willst du uns noch etwas mitteilen?"></textarea></div>
@@ -448,9 +453,8 @@
           </form>
         </div>
 
-        <div class="funnel-step" data-step="10">
+        <div class="funnel-step" data-step="9">
           <div class="funnel-q">
-            <span class="funnel-eyebrow">10 / 10</span>
             <h2>Danke — geschafft!</h2>
             <p>Deine Angaben sind bei uns angekommen.</p>
           </div>

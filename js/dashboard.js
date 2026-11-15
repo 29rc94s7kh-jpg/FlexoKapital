@@ -572,9 +572,17 @@
     return out;
   }
 
-  var ANSWER_FIELD_ORDER = ['ziel', 'art', 'einmalbetrag', 'sparrate', 'groessenordnung', 'zeithorizont', 'erfahrung', 'erfahrung_mit', 'bestehend', 'entscheidung', 'timing']; // 'bestehend' only on older leads
+  // Name: immer "Vorname Nachname", der Nachname hervorgehoben. Ältere Leads haben nur ein Namensfeld.
+  function leadNameHtml(lead){
+    var first = (lead.vorname || '').trim(), last = (lead.nachname || '').trim();
+    if(!first && !last) return escapeHtml(lead.name || '–');
+    return (first ? '<span class="nm-first">' + escapeHtml(first) + '</span> ' : '') +
+      (last ? '<span class="nm-last">' + escapeHtml(last) + '</span>' : '');
+  }
+
+  var ANSWER_FIELD_ORDER = ['ziel', 'art', 'einmalbetrag', 'sparrate', 'groessenordnung', 'zeithorizont', 'erfahrung', 'erfahrung_mit', 'alter', 'bestehend', 'entscheidung', 'timing']; // 'bestehend' only on older leads
   var ANSWER_LABELS = { ziel: 'Ziel', art: 'Art', einmalbetrag: 'Einmalbetrag', sparrate: 'Sparrate', groessenordnung: 'Größenordnung',
-    zeithorizont: 'Zeithorizont', erfahrung: 'Erfahrung', erfahrung_mit: 'Erfahrung mit', bestehend: 'Bestehendes', entscheidung: 'Entscheidung', timing: 'Timing' };
+    zeithorizont: 'Zeithorizont', erfahrung: 'Erfahrung', erfahrung_mit: 'Erfahrung mit', alter: 'Alter', bestehend: 'Bestehendes', entscheidung: 'Entscheidung', timing: 'Timing' };
   function answerText(val){
     if(Array.isArray(val)) return val.map(answerText).filter(Boolean).join(', ');
     if(val && typeof val === 'object') return ('label' in val) ? String(val.label) : '';
@@ -774,7 +782,7 @@
       tr.innerHTML =
         '<td>' + formatDate(lead.createdAt) + '</td>' +
         '<td><span class="badge ' + (isFunnel ? 'funnel' : 'kontakt') + '">' + (isFunnel ? 'Fragebogen' : 'Kontakt') + '</span></td>' +
-        '<td class="cell-name">' + escapeHtml(lead.name || '–') + marks + '</td>' +
+        '<td class="cell-name">' + leadNameHtml(lead) + marks + '</td>' +
         '<td class="cell-mail">' + escapeHtml(lead.email || '–') + '</td>' +
         '<td>' + escapeHtml(lead.phone || '–') + '</td>' +
         '<td class="cell-note">' + escapeHtml(lead.message || '–') + '</td>' +
@@ -1267,7 +1275,7 @@
       }
       b.className = cls;
       var soon = item.d && canRemind(item.a) && Math.round((dayStart(item.d) - dayStart(now)) / 864e5) <= 1;
-      b.innerHTML = '<span class="cb-name">' + escapeHtml(item.lead.name || '–') + '</span>' +
+      b.innerHTML = '<span class="cb-name">' + leadNameHtml(item.lead) + '</span>' +
         '<span class="cb-meta">' + escapeHtml(meta) + '</span>' +
         (item.lead.phone ? '<span class="cb-phone">' + escapeHtml(item.lead.phone) + '</span>' : '') +
         (soon ? '<span class="cb-actions">' + remindLinkHtml(item.lead, item.a, true) + '</span>' : '');
@@ -1310,7 +1318,7 @@
       var b = document.createElement('button');
       b.type = 'button'; b.className = 'callback-item followup-kind';
       var d = tsToDate(item.fu.appt.at);
-      b.innerHTML = '<span class="cb-name">' + escapeHtml(item.lead.name || '–') + '</span>' +
+      b.innerHTML = '<span class="cb-name">' + leadNameHtml(item.lead) + '</span>' +
         '<span class="cb-meta">Nachfassen · ' + APPT_TYPES[item.fu.appt.type] + ' ' + (item.fu.appt.result === 'noshow' ? 'nicht erschienen' : 'abgesagt') + (d ? ' (' + formatDay(d) + ')' : '') + '</span>' +
         (item.lead.phone ? '<span class="cb-phone">' + escapeHtml(item.lead.phone) + '</span>' : '');
       b.addEventListener('click', function(){ openLeadFromList(item.id); });
@@ -1321,7 +1329,7 @@
       b.type = 'button'; b.className = 'callback-item todo-kind';
       b.innerHTML = '<span class="cb-name">' + escapeHtml(item.t.text) + '</span>' +
         '<span class="cb-meta">To-do · fällig ' + formatDueFull(item.d) + '</span>' +
-        '<span class="cb-phone">' + escapeHtml(item.lead.name || '–') + '</span>';
+        '<span class="cb-phone">' + leadNameHtml(item.lead) + '</span>';
       b.addEventListener('click', function(){ openLeadFromList(item.id); });
       callbackList.appendChild(b);
     });
@@ -1329,7 +1337,7 @@
       var b = document.createElement('button');
       b.type = 'button'; b.className = 'callback-item';
       var when = item.cb.overdueDays <= 0 ? 'seit heute fällig' : ('seit ' + item.cb.overdueDays + (item.cb.overdueDays === 1 ? ' Tag' : ' Tagen') + ' fällig');
-      b.innerHTML = '<span class="cb-name">' + escapeHtml(item.lead.name || '–') + '</span>' +
+      b.innerHTML = '<span class="cb-name">' + leadNameHtml(item.lead) + '</span>' +
         '<span class="cb-meta">Anruf ' + item.cb.next + ' von ' + MAX_CALLS + ' · ' + when + '</span>' +
         (item.lead.phone ? '<span class="cb-phone">' + escapeHtml(item.lead.phone) + '</span>' : '');
       b.addEventListener('click', function(){ openLeadFromList(item.id); });
@@ -1366,7 +1374,22 @@
   }
 
   // ---- Fragebogen-Trichter (anonyme funnel_events) ----
-  var FUNNEL_STEPS = [
+  // Fragebogen ab 15.11.2026 (ohne "allein/gemeinsam" und "wann starten", mit Altersfrage).
+  // Ereignisse heißen nach der Frage ("f2_…"), nicht nach der Schrittnummer.
+  var FUNNEL_STEPS_V2 = [
+    {key:'seite', label:'Seite geöffnet'},
+    {key:'fragebogen_gesehen', label:'Fragebogen gesehen'},
+    {key:'gestartet', label:'Ziel beantwortet', sub:'Frage 1'},
+    {key:'f2_art', label:'Einmalig / monatlich beantwortet'},
+    {key:'f2_betrag', label:'Betrag beantwortet'},
+    {key:'f2_zeithorizont', label:'Zeithorizont beantwortet'},
+    {key:'f2_erfahrung_mit_gezeigt', label:'„Womit hast du Erfahrung?“ erreicht', sub:'nur wer schon Erfahrung hat', optional:true},
+    {key:'f2_erfahrung', label:'Erfahrung beantwortet'},
+    {key:'f2_kontakt', label:'Alter beantwortet', sub:'Kontaktschritt erreicht'},
+    {key:'abgeschickt', label:'Abgeschickt', final:true}
+  ];
+  // Fragebogen bis 15.11.2026 (Ereignisse nach Schrittnummer)
+  var FUNNEL_STEPS_V1 = [
     {key:'seite', label:'Seite geöffnet'},
     {key:'fragebogen_gesehen', label:'Fragebogen gesehen'},
     {key:'gestartet', label:'Frage 1 beantwortet', sub:'Ziel'},
@@ -1379,6 +1402,10 @@
     {key:'schritt_9', label:'Kontaktschritt erreicht', sub:'Frage 8 beantwortet'},
     {key:'abgeschickt', label:'Abgeschickt', final:true}
   ];
+  var FUNNEL_STEPS = FUNNEL_STEPS_V2;
+  var funnelVersion = document.getElementById('funnelVersion');
+  // Zeitpunkt der Umstellung = erstes Ereignis des neuen Fragebogens (null = noch keins)
+  var funnelV2Start = undefined;
   var funnelRange = document.getElementById('funnelRange');
   var funnelSource = document.getElementById('funnelSource');
   var funnelRows = document.getElementById('funnelRows');
@@ -1405,12 +1432,23 @@
     if(Array.prototype.some.call(funnelSource.options, function(o){ return o.value === current; })) funnelSource.value = current;
   }
 
+  function funnelInVersion(d){
+    var isNew = funnelVersion.value !== 'v1';
+    if(!funnelV2Start) return !isNew;
+    var t = tsToDate(d.t);
+    if(!t) return false;
+    return isNew ? t >= funnelV2Start : t < funnelV2Start;
+  }
+
   function renderFunnel(){
     var filter = funnelSource.value || 'alle';
+    FUNNEL_STEPS = funnelVersion.value === 'v1' ? FUNNEL_STEPS_V1 : FUNNEL_STEPS_V2;
     var visitsByStep = {};
+    var inVersion = 0;
     FUNNEL_STEPS.forEach(function(st){ visitsByStep[st.key] = {}; });
     funnelDocs.forEach(function(d){
-      if(!funnelMatches(d, filter)) return;
+      if(!funnelMatches(d, filter) || !funnelInVersion(d)) return;
+      inVersion++;
       if(visitsByStep[d.e]) visitsByStep[d.e][d.v] = 1;
     });
     // "schritt_7 erreicht" heißt auch: Frage 5 beantwortet (Einsteiger überspringen Frage 6)
@@ -1436,16 +1474,24 @@
     });
     funnelRows.innerHTML = html;
     var seen = counts[1], done = counts[counts.length - 1];
-    funnelFoot.textContent = funnelDocs.length
-      ? ('Abschlussquote ab „Fragebogen gesehen“: ' + (seen ? Math.round(done / seen * 1000) / 10 : 0) + ' %. Rote Werte = besonders viele Abbrüche an dieser Stelle.')
-      : 'Noch keine Daten im gewählten Zeitraum.';
+    var since = funnelV2Start ? ' (Umstellung: ' + formatDay(funnelV2Start) + ')' : '';
+    funnelFoot.textContent = inVersion
+      ? ('Abschlussquote ab „Fragebogen gesehen“: ' + (seen ? Math.round(done / seen * 1000) / 10 : 0) + ' %. Rote Werte = besonders viele Abbrüche an dieser Stelle.' + since)
+      : (funnelVersion.value !== 'v1' && !funnelV2Start ? 'Noch keine Daten seit der Umstellung des Fragebogens.' : 'Noch keine Daten im gewählten Zeitraum.' + since);
   }
 
   function loadFunnel(){
     var days = parseInt(funnelRange.value, 10) || 30;
     var since = firebase.firestore.Timestamp.fromDate(new Date(Date.now() - days * 24 * 60 * 60 * 1000));
     funnelFoot.textContent = 'Lädt…';
-    db.collection('funnel_events').where('t', '>=', since).get().then(function(snap){
+    var v2Query = funnelV2Start !== undefined && funnelV2Start !== null ? Promise.resolve(null) :
+      db.collection('funnel_events').where('e', '>=', 'f2_').where('e', '<', 'f2`').get().then(function(snap){
+        var min = null;
+        snap.docs.forEach(function(doc){ var d = doc.data(); if(String(d.e || '').indexOf('f2_') !== 0) return; var t = tsToDate(d.t); if(t && (!min || t < min)) min = t; });
+        // erster Besuch mit neuem Fragebogen hat schon "Seite"/"gesehen" kurz davor geloggt
+        funnelV2Start = min ? new Date(min.getTime() - 30 * 60 * 1000) : null;
+      }).catch(function(err){ console.error('Umstellungszeitpunkt nicht ermittelbar:', err); funnelV2Start = null; });
+    v2Query.then(function(){ return db.collection('funnel_events').where('t', '>=', since).get(); }).then(function(snap){
       funnelDocs = snap.docs.map(function(doc){
         var d = doc.data();
         // ältere Einträge: "B+-+Ad+01.10.2026" und "B - Ad 01.10.2026" als dieselbe Anzeige zählen
@@ -1461,6 +1507,7 @@
   }
   funnelRange.addEventListener('change', loadFunnel);
   funnelSource.addEventListener('change', renderFunnel);
+  funnelVersion.addEventListener('change', renderFunnel);
   document.getElementById('funnelReload').addEventListener('click', loadFunnel);
 
   // ---- Lead-Qualität: was aus den Leads wird (Anruf → Termin → Abschluss) ----

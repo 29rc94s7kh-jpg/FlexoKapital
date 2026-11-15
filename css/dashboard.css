@@ -69,6 +69,8 @@
   .badge.funnel{background:var(--accent-soft);color:var(--accent);}
   .badge.kontakt{background:rgba(143,160,166,.16);color:var(--muted);}
   .cell-name{font-weight:600;}
+  .nm-first{font-weight:400;}
+  .nm-last{font-weight:700;}
   .cell-mail{color:var(--text-dim);font-size:13.5px;}
   .cell-note{color:var(--text-dim);max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .detail-row td{padding:0 16px 18px;background:var(--surface-2);}

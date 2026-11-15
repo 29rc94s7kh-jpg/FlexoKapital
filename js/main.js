@@ -250,21 +250,25 @@
       ['krypto','Krypto'],
       ['anderes','Anderes (z. B. Anleihen, Gold, Bausparer)']
     ]},
-    {field:'entscheidung', q:'Entscheidest du allein oder gemeinsam?', options:[
-      ['allein','Allein'],
-      ['gemeinsam','Gemeinsam, z. B. mit Partner:in']
-    ]},
-    {field:'timing', q:'Wann möchtest du starten?', options:[
-      ['sofort','Sofort'],
-      ['bald','In den nächsten Monaten'],
-      ['info','Erstmal nur informieren']
+    {field:'alter', q:'Wie alt bist du?', options:[
+      ['u30','unter 30'],
+      ['30-39','30–39'],
+      ['40-49','40–49'],
+      ['50+','ab 50']
     ]}
   ];
   var funnelState = {step:1, answers:{}};
-  var funnelTotal = 10;
+  // Schritte 1–7 = Fragen, 8 = Kontaktdaten, 9 = Danke
+  var funnelTotal = 9;
+  var FUNNEL_CONTACT_STEP = 8;
+  var FUNNEL_AGE_STEP = 7;
+  // Anonyme Trichter-Ereignisse beim Erreichen eines Schritts. Benannt nach der Frage
+  // (nicht nach der Nummer), damit sich die Auswertung bei Umbauten nicht vermischt.
+  // Präfix "f2_" = Fragebogen-Version ab 15.11.2026.
+  var FUNNEL_STEP_EVENTS = {3:'f2_art', 4:'f2_betrag', 5:'f2_zeithorizont', 6:'f2_erfahrung_mit_gezeigt', 7:'f2_erfahrung', 8:'f2_kontakt'};
 
   // Step 6 ("Womit hast du schon Erfahrung?") is skipped for beginners,
-  // so their path has 9 steps instead of 10.
+  // so their path has one step less.
   // Meta-Pixel: Fragebogen-Fortschritt als Standard-Events melden
   // (eigene "trackCustom"-Events verwirft Meta bei der Finanzkategorie).
   // Feuert nur, wenn der Besucher Cookies akzeptiert hat (fbq existiert).
@@ -295,6 +299,8 @@
     return prev;
   }
   function funnelDisplayTotal(){ return funnelSkipsExperienceStep() ? funnelTotal - 1 : funnelTotal; }
+  // ohne Danke-Bildschirm
+  function funnelDisplayQuestions(){ return funnelDisplayTotal() - 1; }
   function funnelDisplayStep(n){ return (funnelSkipsExperienceStep() && n > FUNNEL_EXPERIENCE_STEP) ? n - 1 : n; }
   function updateMultiAnswer(group){
     var sel = Array.prototype.slice.call(group.querySelectorAll('.funnel-opt.selected'));
@@ -321,7 +327,7 @@
       }).join('');
       var isMulti = !!q.multi;
       stepEl.innerHTML =
-        '<div class="funnel-q"><span class="funnel-eyebrow">0'+(i+1)+' / '+funnelTotal+'</span><h2>'+q.q+'</h2>' +
+        '<div class="funnel-q"><h2>'+q.q+'</h2>' +
           (isMulti ? '<p>Mehrfachauswahl möglich.</p>' : '') + '</div>' +
         '<div class="funnel-options'+(isMulti ? ' is-multi' : '')+'" data-field="'+q.field+'"'+(isMulti ? ' data-multi="1"' : '')+'>'+optsHtml+'</div>' +
         (isMulti ? '<button type="button" class="cta-btn funnel-multi-next" disabled>Weiter</button>' : '');
@@ -400,7 +406,7 @@
     var stepEl = document.querySelector('.funnel-step[data-step="3"]');
     if(!stepEl) return;
     var artVal = funnelState.answers.art ? funnelState.answers.art.value : 'einmalig';
-    var eyebrow = '<span class="funnel-eyebrow">03 / '+funnelTotal+'</span>';
+    var eyebrow = '';
     var html;
     if(artVal === 'monatlich'){
       html = '<div class="funnel-q">'+eyebrow+'<h2>Wie viel möchtest du monatlich investieren?</h2></div>' +
@@ -437,7 +443,7 @@
     if(!stepEl) return;
     var artVal = funnelState.answers.art ? funnelState.answers.art.value : 'einmalig';
     var opts = artVal === 'monatlich' ? funnelZeithorizontMonatlich : funnelZeithorizontGeneral;
-    var eyebrow = '<span class="funnel-eyebrow">04 / '+funnelTotal+'</span>';
+    var eyebrow = '';
     stepEl.innerHTML = '<div class="funnel-q">'+eyebrow+'<h2>Was ist dein Zeithorizont?</h2></div>' +
       funnelOptsHtml('zeithorizont', opts);
   }
@@ -446,9 +452,11 @@
     var fill = document.getElementById('funnelFill');
     var label = document.getElementById('funnelLabel');
     if(!fill || !label) return;
-    var shown = funnelDisplayStep(funnelState.step), total = funnelDisplayTotal();
-    fill.style.width = Math.round((shown/total)*100) + '%';
-    label.textContent = 'Schritt '+shown+' von '+total;
+    // Balken ohne Zahlen: schon beim ersten Schritt ein Stück gefüllt, voll erst nach dem Absenden
+    var step = funnelState.step;
+    var pct = step >= funnelTotal ? 100 : Math.round(funnelDisplayStep(step) / (funnelDisplayQuestions() + 1) * 100);
+    fill.style.width = pct + '%';
+    label.textContent = step === FUNNEL_CONTACT_STEP ? 'Letzter Schritt' : (step === FUNNEL_AGE_STEP ? 'Fast geschafft' : '');
   }
 
   function funnelGoTo(n){
@@ -456,17 +464,14 @@
     var target = document.querySelector('.funnel-step[data-step="'+n+'"]');
     if(target) target.classList.add('active');
     funnelState.step = n;
-    if(n === 9) trackFunnelOnce('FragebogenKontaktschritt');
-    if(n >= 3 && n <= 9) logVisitEvent('schritt_' + n);
+    if(n === FUNNEL_CONTACT_STEP) trackFunnelOnce('FragebogenKontaktschritt');
+    if(FUNNEL_STEP_EVENTS[n]) logVisitEvent(FUNNEL_STEP_EVENTS[n]);
+    var intro = document.getElementById('funnelIntro');
+    if(intro) intro.hidden = (n !== 1);
     var back = document.getElementById('funnelBack');
     if(back) back.hidden = (n === 1);
     if(n === 3 && !target.innerHTML.trim()) renderStep3();
     if(n === 4 && !target.innerHTML.trim()) renderStep4();
-    var eyebrowEl = target && target.querySelector('.funnel-eyebrow');
-    if(eyebrowEl){
-      var shownStep = funnelDisplayStep(n);
-      eyebrowEl.textContent = (shownStep < 10 ? '0' : '') + shownStep + ' / ' + funnelDisplayTotal();
-    }
     updateFunnelProgress();
   }
 
@@ -570,13 +575,17 @@
     funnelContactForm.addEventListener('submit', function(e){
       e.preventDefault();
       if(!funnelContactForm.checkValidity()){ funnelContactForm.reportValidity(); return; }
-      funnelState.answers._name = document.getElementById('funnelName').value.trim();
+      var funnelFirst = document.getElementById('funnelFirstName').value.trim().replace(/\s+/g, ' ');
+      var funnelLast = document.getElementById('funnelLastName').value.trim().replace(/\s+/g, ' ');
+      funnelState.answers._name = (funnelFirst + ' ' + funnelLast).trim();
       funnelState.answers._email = document.getElementById('funnelEmail').value.trim();
       funnelState.answers._phone = document.getElementById('funnelPhone').value.trim();
       var funnelVisitorNote = document.getElementById('funnelNote').value.trim();
       saveLead({
         source: 'erstgespraech_funnel',
         name: funnelState.answers._name,
+        vorname: funnelFirst,
+        nachname: funnelLast,
         email: funnelState.answers._email,
         phone: funnelState.answers._phone,
         message: buildFunnelNotes(),
