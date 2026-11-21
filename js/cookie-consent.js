@@ -8,8 +8,8 @@
   function setConsent(v){
     try { localStorage.setItem(KEY, v); } catch(e){}
   }
-  function showBanner(){ if (banner) banner.hidden = false; document.body.classList.add('cookie-modal-open'); }
-  function hideBanner(){ if (banner) banner.hidden = true; document.body.classList.remove('cookie-modal-open'); }
+  function showBanner(){ if (banner) banner.hidden = false; document.body.classList.add('cookie-bar-open'); }
+  function hideBanner(){ if (banner) banner.hidden = true; document.body.classList.remove('cookie-bar-open'); }
 
   var priorConsent = getConsent();
   if (priorConsent === 'accepted') {

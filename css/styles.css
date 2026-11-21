@@ -5,19 +5,23 @@
 @font-face{font-family:'Plus Jakarta Sans';font-style:normal;font-weight:700;font-display:swap;src:url('../fonts/plus-jakarta-sans-latin-700-normal.woff2') format('woff2');}
 @font-face{font-family:'Plus Jakarta Sans';font-style:normal;font-weight:800;font-display:swap;src:url('../fonts/plus-jakarta-sans-latin-800-normal.woff2') format('woff2');}
 
-/* Cookie consent modal */
-body.cookie-modal-open{overflow:hidden;}
-  .cookie-modal{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(6,9,12,0.72);backdrop-filter:blur(3px);}
-  .cookie-modal-card{max-width:480px;width:100%;background:var(--surface);border:1px solid var(--border-strong);border-radius:16px;box-shadow:var(--shadow);padding:28px 26px;}
-  .cookie-modal-card h3{margin:0 0 10px;font-size:19px;}
-  .cookie-modal-card p{margin:0 0 22px;color:var(--text-dim);font-size:14px;line-height:1.6;}
-  .cookie-modal-card .cookie-link{color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:2px;}
-  .cookie-modal-actions{display:flex;gap:10px;}
-  .cookie-modal-actions button{flex:1;padding:12px 16px;font-size:14px;font-weight:700;border-radius:10px;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;}
-  .cookie-modal-actions .cookie-btn-accept{background:var(--accent);color:#fff;border:1px solid var(--accent);}
-  .cookie-modal-actions .cookie-btn-reject{background:var(--surface-2);color:var(--text);border:1px solid var(--border-strong);}
-  @media (max-width:480px){
-    .cookie-modal-actions{flex-direction:column;}
+/* Cookie consent bar (unten, blockiert die Seite nicht) */
+  .cookie-bar{position:fixed;left:12px;right:12px;bottom:12px;z-index:9999;display:flex;justify-content:center;pointer-events:none;}
+  .cookie-bar[hidden]{display:none;}
+  .cookie-bar-inner{pointer-events:auto;max-width:760px;width:100%;display:flex;align-items:center;gap:16px;background:var(--surface);border:1px solid var(--border-strong);border-radius:14px;box-shadow:var(--shadow);padding:12px 14px 12px 18px;}
+  .cookie-bar-inner p{margin:0;flex:1;color:var(--text-dim);font-size:13px;line-height:1.5;}
+  .cookie-bar .cookie-link{color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:2px;white-space:nowrap;}
+  .cookie-bar-actions{display:flex;gap:8px;flex-shrink:0;}
+  .cookie-bar-actions button{padding:9px 14px;font-size:13px;font-weight:700;border-radius:9px;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;white-space:nowrap;}
+  .cookie-bar-actions .cookie-btn-accept{background:var(--accent);color:#fff;border:1px solid var(--accent);}
+  .cookie-bar-actions .cookie-btn-reject{background:var(--surface-2);color:var(--text);border:1px solid var(--border-strong);}
+  body.cookie-bar-open{padding-bottom:110px;}
+  @media (max-width:600px){
+    .cookie-bar{left:8px;right:8px;bottom:8px;}
+    .cookie-bar-inner{flex-direction:column;align-items:stretch;gap:10px;padding:12px;}
+    .cookie-bar-inner p{font-size:12.5px;}
+    .cookie-bar-actions button{flex:1;}
+    body.cookie-bar-open{padding-bottom:140px;}
   }
 
 /* Main site styles */
@@ -418,7 +422,12 @@ body.cookie-modal-open{overflow:hidden;}
   .funnel-intro{margin:0 0 22px;}
   .funnel-intro[hidden]{display:none;}
   .funnel-intro-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:12.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin:0 0 6px;}
+  .funnel-intro-headline{font-size:clamp(24px,4.4vw,32px);line-height:1.22;margin:0 0 10px;letter-spacing:-.01em;text-wrap:balance;}
+  .funnel-intro-headline .accent{color:var(--accent);white-space:nowrap;}
+  .funnel-progress-label:empty{min-height:0;margin-top:0;}
   .funnel-intro-sub{font-size:15px;color:var(--text-dim);margin:0;}
+  #page-erstgespraech{padding-top:36px;}
+  @media (max-width:760px){ #page-erstgespraech{padding-top:20px;} .funnel-wrap{padding-top:8px;} .funnel-intro{margin-bottom:18px;} .funnel-progress{padding-bottom:22px;} .funnel-q h2{margin-bottom:20px;} .funnel-intro-headline{font-size:22px;margin-bottom:8px;} .funnel-intro-sub{font-size:14px;} }
 
   .funnel-stage{position:relative;padding:4px 0 8px;min-height:340px;}
   .funnel-step{display:none;}

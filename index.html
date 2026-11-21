@@ -420,7 +420,8 @@
     <div class="wrap funnel-wrap">
       <div class="funnel-intro" id="funnelIntro">
         <p class="funnel-intro-title">Kostenloses Erstgespräch</p>
-        <p class="funnel-intro-sub">In ca. 1 Minute angefragt &ndash; unverbindlich und persönlich.</p>
+        <h2 class="funnel-intro-headline">Finde heraus, ob die <span class="accent">KESt-Ausnahme</span> für dich passt.</h2>
+        <p class="funnel-intro-sub">Ein paar kurze Fragen, ca. 1 Minute &ndash; unverbindlich und persönlich.</p>
       </div>
       <div class="funnel-progress">
         <div class="funnel-progress-track"><div class="funnel-progress-fill" id="funnelFill"></div></div>
@@ -602,11 +603,10 @@
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="js/main.js"></script>
 
-<div id="cookie-banner" class="cookie-modal" role="dialog" aria-modal="true" aria-label="Cookie-Einstellungen" hidden>
-  <div class="cookie-modal-card">
-    <h3>Cookies &amp; Datenschutz</h3>
-    <p>Wir m&ouml;chten mit einem Marketing-Tool (Meta-Pixel) besser verstehen, wie unsere Inhalte ankommen. Das l&auml;uft nur mit deiner Zustimmung. Details in der <span data-nav="datenschutz" class="cookie-link" id="cookie-banner-datenschutz-link">Datenschutzerkl&auml;rung</span>.</p>
-    <div class="cookie-modal-actions">
+<div id="cookie-banner" class="cookie-bar" role="region" aria-label="Cookie-Einstellungen" hidden>
+  <div class="cookie-bar-inner">
+    <p>Wir nutzen den Meta-Pixel, um unsere Werbung auszuwerten &ndash; nur mit deiner Zustimmung. <span data-nav="datenschutz" class="cookie-link" id="cookie-banner-datenschutz-link">Datenschutz</span></p>
+    <div class="cookie-bar-actions">
       <button class="cookie-btn-reject" id="cookie-reject" type="button">Nur notwendige</button>
       <button class="cookie-btn-accept" id="cookie-accept" type="button">Akzeptieren</button>
     </div>
