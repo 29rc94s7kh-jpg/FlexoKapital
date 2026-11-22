@@ -165,6 +165,7 @@
         else b.removeAttribute('aria-current');
       });
       document.body.classList.toggle('funnel-active', id === 'erstgespraech');
+      if(id !== 'erstgespraech') document.body.classList.remove('funnel-contact');
       if(id === 'erstgespraech' && typeof resetFunnel === 'function') resetFunnel();
       updateNavIndicator();
       if(push !== false) history.replaceState(null,'','#'+id);
@@ -464,6 +465,8 @@
     var target = document.querySelector('.funnel-step[data-step="'+n+'"]');
     if(target) target.classList.add('active');
     funnelState.step = n;
+    // Im Kontaktschritt die Cookie-Leiste nicht über den Absenden-Button legen
+    document.body.classList.toggle('funnel-contact', n === FUNNEL_CONTACT_STEP);
     if(n === FUNNEL_CONTACT_STEP) trackFunnelOnce('FragebogenKontaktschritt');
     if(FUNNEL_STEP_EVENTS[n]) logVisitEvent(FUNNEL_STEP_EVENTS[n]);
     var intro = document.getElementById('funnelIntro');
