@@ -543,6 +543,7 @@
   }
 
   var justAddedCall = null;   // Lead, bei dem gerade ein Anruf angelegt wurde (neuester Anruf wird kurz hervorgehoben)
+  var editingContactId = null; // Lead, dessen Kontaktdaten gerade bearbeitet werden
   var noteSavedAt = {};       // leadId -> Zeitpunkt der letzten automatischen Notiz-Speicherung
   var CALL_OUTCOMES = [['nicht_abgehoben', 'Nicht abgehoben'], ['abgehoben', 'Abgehoben'], ['termin', 'Termin vereinbart'], ['kein_interesse', 'Kein Interesse']];
 
@@ -592,6 +593,16 @@
   var ICON_MAIL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>';
   var ICON_WA = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2c-1.5 0-3-.4-4.3-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1-.7-.3-1.4-.7-2-1.3-.5-.5-1-1.1-1.3-1.7-.1-.2 0-.4.1-.5l.4-.4.3-.5v-.5l-.8-1.9c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.3-.2.3-.9.9-.9 2.2s.9 2.5 1 2.7c.1.2 1.8 2.8 4.4 3.9 1.6.7 2.3.8 3.1.6.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.2-1.2-.1-.1-.3-.2-.5-.3z"/></svg>';
 
+  var ICON_EDIT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
+  // Vor-/Nachname für das Bearbeiten-Formular (ältere Leads haben nur "name")
+  function contactNameParts(lead){
+    var first = (lead.vorname || '').trim(), last = (lead.nachname || '').trim();
+    if(first || last) return { first: first, last: last };
+    var parts = String(lead.name || '').trim().split(/\s+/).filter(Boolean);
+    if(parts.length < 2) return { first: parts[0] || '', last: '' };
+    return { first: parts.slice(0, -1).join(' '), last: parts[parts.length - 1] };
+  }
+
   // Detailansicht eines Leads: Kopf (Kontakt + Schnellaktionen), links Verlauf (Termine, Anrufe, To-dos),
   // rechts Profil (Fragebogen, Nachricht, interne Notiz). Am Handy einspaltig.
   function buildDetailHtml(lead, viewingTrashView, docId){
@@ -603,12 +614,29 @@
     }
     meta.push('eingegangen ' + formatDate(lead.createdAt));
     var wa = waNumber(lead.phone);
-    var head = '<div class="ld-head"><div class="ld-meta">' + meta.map(escapeHtml).join(' · ') + '</div>' +
-      '<div class="ld-contact">' +
+    var contactHtml;
+    if(editingContactId === docId && !viewingTrashView){
+      var cn = contactNameParts(lead);
+      contactHtml = '<div class="ld-edit">' +
+        '<div class="ld-edit-grid">' +
+          '<label>Vorname<input type="text" class="ce-first" autocomplete="off" value="' + escapeHtml(cn.first) + '"></label>' +
+          '<label>Nachname<input type="text" class="ce-last" autocomplete="off" value="' + escapeHtml(cn.last) + '"></label>' +
+          '<label>Telefon<input type="tel" class="ce-phone" autocomplete="off" value="' + escapeHtml(lead.phone || '') + '"></label>' +
+          '<label>E-Mail<input type="email" class="ce-email" autocomplete="off" value="' + escapeHtml(lead.email || '') + '"></label>' +
+        '</div>' +
+        (lead.originalContact ? '<div class="ld-edit-orig">Ursprünglich angegeben: ' + escapeHtml([lead.originalContact.name, lead.originalContact.phone, lead.originalContact.email].filter(Boolean).join(' · ')) + '</div>' : '') +
+        '<div class="ld-edit-actions"><button type="button" class="btn ce-save">Speichern</button><button type="button" class="btn ghost ce-cancel">Abbrechen</button><span class="ce-msg"></span></div>' +
+      '</div>';
+    } else {
+      contactHtml = '<div class="ld-contact">' +
         (lead.phone ? '<a class="ld-chip" href="tel:' + escapeHtml(String(lead.phone).replace(/[^\d+]/g, '')) + '">' + ICON_PHONE + escapeHtml(lead.phone) + '</a>' : '') +
         (wa ? '<a class="ld-chip wa" href="https://wa.me/' + wa + '" target="_blank" rel="noopener">' + ICON_WA + 'WhatsApp</a>' : '') +
         (lead.email ? '<a class="ld-chip" href="mailto:' + escapeHtml(lead.email) + '">' + ICON_MAIL + escapeHtml(lead.email) + '</a>' : '') +
-      '</div>' +
+        (viewingTrashView ? '' : '<button type="button" class="ld-chip ld-edit-contact" title="Name, Telefon oder E-Mail korrigieren">' + ICON_EDIT + 'Bearbeiten</button>') +
+      '</div>';
+    }
+    var head = '<div class="ld-head"><div class="ld-meta">' + meta.map(escapeHtml).join(' · ') + '</div>' +
+      contactHtml +
       (viewingTrashView ? '' : '<div class="ld-actions"><button type="button" class="btn call-add-btn">+ Anruf<span class="ld-hide-m"> erfassen</span></button>' +
         '<button type="button" class="btn ghost ld-go-appt">Termin</button><button type="button" class="btn ghost ld-go-todo">To-do</button></div>') +
       '</div>';
@@ -886,6 +914,50 @@
       var goTodo = detailTd.querySelector('.ld-go-todo');
       if(goTodo) goTodo.addEventListener('click', function(e){ e.stopPropagation(); focusField('.todo-input'); });
       Array.prototype.forEach.call(detailTd.querySelectorAll('.ld-chip'), function(a){ a.addEventListener('click', function(e){ e.stopPropagation(); }); });
+
+      // Kontaktdaten bearbeiten (z. B. falsch eingegebene Telefonnummer)
+      var editContactBtn = detailTd.querySelector('.ld-edit-contact');
+      if(editContactBtn) editContactBtn.addEventListener('click', function(e){
+        e.stopPropagation();
+        editingContactId = docId;
+        renderTable(allLeadDocs);
+        var f = leadsBody.querySelector('tr.lead-row[data-id="' + docId + '"] + tr .ce-phone');
+        if(f) f.focus();
+      });
+      var editBox = detailTd.querySelector('.ld-edit');
+      if(editBox){
+        editBox.addEventListener('click', function(e){ e.stopPropagation(); });
+        var ceMsg = editBox.querySelector('.ce-msg');
+        editBox.querySelector('.ce-cancel').addEventListener('click', function(){ editingContactId = null; renderTable(allLeadDocs); });
+        var ceSave = editBox.querySelector('.ce-save');
+        var doSave = function(){
+          var first = editBox.querySelector('.ce-first').value.trim();
+          var last = editBox.querySelector('.ce-last').value.trim();
+          var phone = editBox.querySelector('.ce-phone').value.trim();
+          var email = editBox.querySelector('.ce-email').value.trim();
+          if(!first && !last){ ceMsg.textContent = 'Bitte einen Namen eingeben.'; return; }
+          if(!phone && !email){ ceMsg.textContent = 'Bitte Telefon oder E-Mail eingeben.'; return; }
+          if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ ceMsg.textContent = 'Die E-Mail-Adresse sieht nicht gültig aus.'; return; }
+          if(phone && phone.replace(/\D/g, '').length < 6){ ceMsg.textContent = 'Die Telefonnummer ist zu kurz.'; return; }
+          var updates = { vorname: first, nachname: last, name: (first + ' ' + last).trim(), phone: phone, email: email,
+            contactEditedAt: firebase.firestore.FieldValue.serverTimestamp() };
+          // Ursprüngliche Angaben einmalig aufheben, damit nachvollziehbar bleibt, was der Lead selbst eingegeben hat
+          if(!lead.originalContact) updates.originalContact = { name: lead.name || '', vorname: lead.vorname || '', nachname: lead.nachname || '', phone: lead.phone || '', email: lead.email || '' };
+          ceSave.disabled = true; ceMsg.textContent = 'Speichert …';
+          editingContactId = null; // Formular schließen; der Live-Listener zeigt gleich die neuen Daten
+          db.collection('leads').doc(docId).update(updates).catch(function(err){
+            alert('Kontaktdaten konnten nicht gespeichert werden: ' + (err && err.message || err));
+            renderTable(allLeadDocs);
+          });
+        };
+        ceSave.addEventListener('click', doSave);
+        Array.prototype.forEach.call(editBox.querySelectorAll('input'), function(inp){
+          inp.addEventListener('keydown', function(e){
+            if(e.key === 'Enter'){ e.preventDefault(); doSave(); }
+            if(e.key === 'Escape'){ editingContactId = null; renderTable(allLeadDocs); }
+          });
+        });
+      }
 
       var todoInput = detailTd.querySelector('.todo-input');
       var todoAddBtn = detailTd.querySelector('.todo-add-btn');
@@ -1212,6 +1284,7 @@
 
   function toggleLead(docId){
     expandedLeadId = (expandedLeadId === docId) ? null : docId;
+    if(editingContactId && editingContactId !== expandedLeadId) editingContactId = null;
     if(expandedLeadId) scrollToLeadId = docId;
     renderTable(allLeadDocs);
   }
