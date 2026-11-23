@@ -80,7 +80,7 @@
   // ---- Zahlen-Szene vor den drei Gründen (Inhalt wird aus den Karten übernommen) ----
   var scene = null, facts = [], stepBars = [], ringFg = null, RING_LEN = 0;
   var reasons = document.querySelector('#page-start .reasons-grid');
-  if(reasons){
+  if(reasons && !reasons.classList.contains('rx')){
     var cards = reasons.querySelectorAll('.card');
     scene = document.createElement('div'); scene.className = 'mx-scene'; scene.setAttribute('aria-hidden', 'true');
     var html = '<div class="mx-scene-sticky"><div class="mx-stage"><div class="mx-ringwrap"><svg viewBox="0 0 200 200"><circle class="bgc" cx="100" cy="100" r="96"/><circle class="fgc" cx="100" cy="100" r="96"/></svg></div>';
