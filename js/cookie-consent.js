@@ -8,7 +8,7 @@
   function setConsent(v){
     try { localStorage.setItem(KEY, v); } catch(e){}
   }
-  function showBanner(){ if (banner) banner.hidden = false; document.body.classList.add('cookie-bar-open'); }
+  function showBanner(){ if (banner) banner.hidden = false; document.body.classList.add('cookie-bar-open'); var d = banner && banner.querySelector('.cookie-bar-inner'); if (d) { d.setAttribute('tabindex','-1'); try { d.focus({preventScroll:true}); } catch(e){} } }
   function hideBanner(){ if (banner) banner.hidden = true; document.body.classList.remove('cookie-bar-open'); }
 
   var priorConsent = getConsent();
@@ -42,4 +42,11 @@
     var target = document.querySelector('.footer-legal [data-nav="datenschutz"]');
     if (target) target.click();
   });
+  // Wer nur die Datenschutzerklaerung lesen wollte und noch nicht entschieden hat,
+  // bekommt die Abfrage wieder, sobald er die Seite verlaesst.
+  window.addEventListener('hashchange', function(){
+    var c = getConsent();
+    if (c !== 'accepted' && c !== 'rejected' && !/datenschutz|impressum/.test(location.hash)) showBanner();
+  });
+  if (/#(datenschutz|impressum)/.test(location.hash) && banner && !banner.hidden) hideBanner();
 })();

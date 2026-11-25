@@ -708,13 +708,15 @@
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="js/main.js"></script>
 
-<div id="cookie-banner" class="cookie-bar" role="region" aria-label="Cookie-Einstellungen" hidden>
+<div id="cookie-banner" class="cookie-bar" role="dialog" aria-modal="true" aria-labelledby="cookie-title" aria-describedby="cookie-text" hidden>
   <div class="cookie-bar-inner">
-    <p>Wir nutzen den Meta-Pixel zur Werbeauswertung &ndash; nur mit deiner Zustimmung. <span data-nav="datenschutz" class="cookie-link" id="cookie-banner-datenschutz-link">Datenschutz</span></p>
+    <h2 id="cookie-title">Dürfen wir messen, welche Werbung ankommt?</h2>
+    <p id="cookie-text">Wir nutzen den Meta-Pixel, um zu sehen, welche unserer Anzeigen funktionieren. Das geht nur mit deiner Zustimmung. <span data-nav="datenschutz" class="cookie-link" id="cookie-banner-datenschutz-link">Datenschutz</span></p>
     <div class="cookie-bar-actions">
       <button class="cookie-btn-reject" id="cookie-reject" type="button">Nur notwendige</button>
       <button class="cookie-btn-accept" id="cookie-accept" type="button">Akzeptieren</button>
     </div>
+    <p class="cookie-bar-note">Du kannst deine Wahl jederzeit unten in den Cookie-Einstellungen ändern.</p>
   </div>
 </div>
 <script src="js/cookie-consent.js"></script>
