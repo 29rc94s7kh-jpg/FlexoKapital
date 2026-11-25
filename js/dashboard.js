@@ -581,8 +581,8 @@
       (last ? '<span class="nm-last">' + escapeHtml(last) + '</span>' : '');
   }
 
-  var ANSWER_FIELD_ORDER = ['ziel', 'art', 'einmalbetrag', 'sparrate', 'groessenordnung', 'zeithorizont', 'erfahrung', 'erfahrung_mit', 'alter', 'bestehend', 'entscheidung', 'timing']; // 'bestehend' only on older leads
-  var ANSWER_LABELS = { ziel: 'Ziel', art: 'Art', einmalbetrag: 'Einmalbetrag', sparrate: 'Sparrate', groessenordnung: 'Größenordnung',
+  var ANSWER_FIELD_ORDER = ['kest', 'ziel', 'art', 'einmalbetrag', 'sparrate', 'groessenordnung', 'zeithorizont', 'erfahrung', 'erfahrung_mit', 'alter', 'bestehend', 'entscheidung', 'timing']; // 'bestehend' only on older leads
+  var ANSWER_LABELS = { kest: 'Ohne KESt?', ziel: 'Ziel', art: 'Art', einmalbetrag: 'Einmalbetrag', sparrate: 'Sparrate', groessenordnung: 'Größenordnung',
     zeithorizont: 'Zeithorizont', erfahrung: 'Erfahrung', erfahrung_mit: 'Erfahrung mit', alter: 'Alter', bestehend: 'Bestehendes', entscheidung: 'Entscheidung', timing: 'Timing' };
   function answerText(val){
     if(Array.isArray(val)) return val.map(answerText).filter(Boolean).join(', ');
@@ -1461,6 +1461,18 @@
     {key:'f2_kontakt', label:'Alter beantwortet', sub:'Kontaktschritt erreicht'},
     {key:'abgeschickt', label:'Abgeschickt', final:true}
   ];
+  // Fragebogen ab 25.11.2026: Ja-Einstieg, dann Alter, Anlagedauer, Art, Betrag, Erfahrung ("f3_…")
+  var FUNNEL_STEPS_V3 = [
+    {key:'seite', label:'Seite geöffnet'},
+    {key:'fragebogen_gesehen', label:'Fragebogen gesehen'},
+    {key:'gestartet', label:'Einstieg beantwortet', sub:'„Fondsgewinne ohne KESt?“'},
+    {key:'f3_alter', label:'Alter beantwortet'},
+    {key:'f3_zeithorizont', label:'Anlagedauer beantwortet'},
+    {key:'f3_art', label:'Einmalig / monatlich beantwortet'},
+    {key:'f3_betrag', label:'Betrag beantwortet'},
+    {key:'f3_erfahrung', label:'Erfahrung beantwortet', sub:'Kontaktschritt erreicht'},
+    {key:'abgeschickt', label:'Abgeschickt', final:true}
+  ];
   // Fragebogen bis 15.11.2026 (Ereignisse nach Schrittnummer)
   var FUNNEL_STEPS_V1 = [
     {key:'seite', label:'Seite geöffnet'},
@@ -1477,8 +1489,9 @@
   ];
   var FUNNEL_STEPS = FUNNEL_STEPS_V2;
   var funnelVersion = document.getElementById('funnelVersion');
-  // Zeitpunkt der Umstellung = erstes Ereignis des neuen Fragebogens (null = noch keins)
+  // Zeitpunkte der Umstellungen = erstes Ereignis der jeweiligen Version (null = noch keins)
   var funnelV2Start = undefined;
+  var funnelV3Start = undefined;
   var funnelRange = document.getElementById('funnelRange');
   var funnelSource = document.getElementById('funnelSource');
   var funnelRows = document.getElementById('funnelRows');
@@ -1506,16 +1519,17 @@
   }
 
   function funnelInVersion(d){
-    var isNew = funnelVersion.value !== 'v1';
-    if(!funnelV2Start) return !isNew;
+    var v = funnelVersion.value;
     var t = tsToDate(d.t);
     if(!t) return false;
-    return isNew ? t >= funnelV2Start : t < funnelV2Start;
+    if(v === 'v3') return !!funnelV3Start && t >= funnelV3Start;
+    if(v === 'v2') return !!funnelV2Start && t >= funnelV2Start && (!funnelV3Start || t < funnelV3Start);
+    return !funnelV2Start || t < funnelV2Start;
   }
 
   function renderFunnel(){
     var filter = funnelSource.value || 'alle';
-    FUNNEL_STEPS = funnelVersion.value === 'v1' ? FUNNEL_STEPS_V1 : FUNNEL_STEPS_V2;
+    FUNNEL_STEPS = funnelVersion.value === 'v1' ? FUNNEL_STEPS_V1 : (funnelVersion.value === 'v3' ? FUNNEL_STEPS_V3 : FUNNEL_STEPS_V2);
     var visitsByStep = {};
     var inVersion = 0;
     FUNNEL_STEPS.forEach(function(st){ visitsByStep[st.key] = {}; });
@@ -1547,10 +1561,11 @@
     });
     funnelRows.innerHTML = html;
     var seen = counts[1], done = counts[counts.length - 1];
-    var since = funnelV2Start ? ' (Umstellung: ' + formatDay(funnelV2Start) + ')' : '';
+    var sw = funnelVersion.value === 'v3' ? funnelV3Start : funnelV2Start;
+    var since = sw ? ' (Umstellung: ' + formatDay(sw) + ')' : '';
     funnelFoot.textContent = inVersion
       ? ('Abschlussquote ab „Fragebogen gesehen“: ' + (seen ? Math.round(done / seen * 1000) / 10 : 0) + ' %. Rote Werte = besonders viele Abbrüche an dieser Stelle.' + since)
-      : (funnelVersion.value !== 'v1' && !funnelV2Start ? 'Noch keine Daten seit der Umstellung des Fragebogens.' : 'Noch keine Daten im gewählten Zeitraum.' + since);
+      : ((funnelVersion.value === 'v3' && !funnelV3Start) || (funnelVersion.value === 'v2' && !funnelV2Start) ? 'Noch keine Daten seit der Umstellung des Fragebogens.' : 'Noch keine Daten im gewählten Zeitraum.' + since);
   }
 
   function loadFunnel(){
@@ -1564,7 +1579,13 @@
         // erster Besuch mit neuem Fragebogen hat schon "Seite"/"gesehen" kurz davor geloggt
         funnelV2Start = min ? new Date(min.getTime() - 30 * 60 * 1000) : null;
       }).catch(function(err){ console.error('Umstellungszeitpunkt nicht ermittelbar:', err); funnelV2Start = null; });
-    v2Query.then(function(){ return db.collection('funnel_events').where('t', '>=', since).get(); }).then(function(snap){
+    var v3Query = funnelV3Start !== undefined && funnelV3Start !== null ? Promise.resolve(null) :
+      db.collection('funnel_events').where('e', '>=', 'f3_').where('e', '<', 'f3`').get().then(function(snap){
+        var min = null;
+        snap.docs.forEach(function(doc){ var d = doc.data(); if(String(d.e || '').indexOf('f3_') !== 0) return; var t = tsToDate(d.t); if(t && (!min || t < min)) min = t; });
+        funnelV3Start = min ? new Date(min.getTime() - 30 * 60 * 1000) : null;
+      }).catch(function(err){ console.error('Umstellungszeitpunkt v3 nicht ermittelbar:', err); funnelV3Start = null; });
+    Promise.all([v2Query, v3Query]).then(function(){ return db.collection('funnel_events').where('t', '>=', since).get(); }).then(function(snap){
       funnelDocs = snap.docs.map(function(doc){
         var d = doc.data();
         // ältere Einträge: "B+-+Ad+01.10.2026" und "B - Ad 01.10.2026" als dieselbe Anzeige zählen

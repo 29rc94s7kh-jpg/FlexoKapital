@@ -219,11 +219,26 @@
   }
 
   // ---- Erstgespräch funnel ----
+  // Fragebogen v3 (ab 25.11.2026): leichte Ja-Frage zuerst, dann von leicht nach schwer.
+  // Reihenfolge = Schrittnummer (1–6). "Wie möchtest du investieren?" steht direkt vor dem Betrag,
+  // weil der Betrag (5) davon abhängt und dynamisch gebaut wird (siehe renderStep3()).
+  // Die Erfahrungsfrage (6) kommt bewusst zuletzt: wer so weit ist, bricht dort kaum noch ab.
   var funnelQuestions = [
-    {field:'ziel', q:'Was ist dir bei deiner Geldanlage am wichtigsten?', options:[
-      ['vermoegen','Vermögen aufbauen'],
-      ['steuern','Steuern sparen — KESt-befreit'],
-      ['starten','Einfach mal anfangen']
+    {field:'kest', q:'Willst du deine Fondsgewinne ohne KESt?', options:[
+      ['ja','Ja, klar'],
+      ['wie','Erst mal wissen, wie das geht']
+    ]},
+    {field:'alter', q:'Wie alt bist du?', options:[
+      ['u30','unter 30'],
+      ['30-39','30–39'],
+      ['40-49','40–49'],
+      ['50+','ab 50']
+    ]},
+    {field:'zeithorizont', q:'Wie lange kannst du das Geld liegen lassen?', options:[
+      ['kurz','unter 15 Jahre'],
+      ['mittel','15–20 Jahre'],
+      ['lang','20–25 Jahre'],
+      ['sehr_lang','mehr als 25 Jahre']
     ]},
     {field:'art', q:'Wie möchtest du investieren?', options:[
       ['einmalig','Einmalbetrag'],
@@ -231,42 +246,28 @@
       ['beides','Beides — Einmalbetrag & monatlich'],
       ['unsicher','Weiß ich noch nicht']
     ]},
-    {field:'groessenordnung', q:'In welcher Größenordnung denkst du?', options:[
-      ['bis5k','bis 5.000 €'],
-      ['5-20k','5.000–20.000 €'],
-      ['20-50k','20.000–50.000 €'],
-      ['50k+','mehr als 50.000 €']
-    ]},
-    {field:'zeithorizont', q:'Was ist dein Zeithorizont?', options:[]}, // rendered dynamically, see renderStep4()
-    {field:'erfahrung', q:'Wie viel Erfahrung hast du mit Geldanlage?', options:[
-      ['einsteiger','Einsteiger'],
-      ['etwas','Etwas Erfahrung'],
-      ['erfahren','Erfahren']
-    ]},
-    // only shown for "Etwas Erfahrung" / "Erfahren" (see funnelSkipsExperienceStep), multiple answers allowed
+    {field:'groessenordnung', q:'In welcher Größenordnung denkst du?', options:[]}, // dynamisch, siehe renderStep3()
+    // Mehrfachauswahl; "Noch nichts davon" schließt die anderen Antworten aus (siehe Klick-Handler)
     {field:'erfahrung_mit', q:'Womit hast du schon Erfahrung?', multi:true, options:[
       ['etf','ETFs / Fonds'],
       ['aktien','Einzelaktien'],
       ['flv','Fondsgebundene Lebensversicherung'],
       ['krypto','Krypto'],
-      ['anderes','Anderes (z. B. Anleihen, Gold, Bausparer)']
-    ]},
-    {field:'alter', q:'Wie alt bist du?', options:[
-      ['u30','unter 30'],
-      ['30-39','30–39'],
-      ['40-49','40–49'],
-      ['50+','ab 50']
+      ['anderes','Anderes (z. B. Anleihen, Gold, Bausparer)'],
+      ['keine','Noch nichts davon']
     ]}
   ];
   var funnelState = {step:1, answers:{}};
-  // Schritte 1–7 = Fragen, 8 = Kontaktdaten, 9 = Danke
-  var funnelTotal = 9;
-  var FUNNEL_CONTACT_STEP = 8;
-  var FUNNEL_AGE_STEP = 7;
+  // Schritte 1–6 = Fragen, 7 = Kontaktdaten, 8 = Danke
+  var funnelTotal = 8;
+  var FUNNEL_CONTACT_STEP = 7;
+  var FUNNEL_ALMOST_STEP = 6; // Hinweis "Fast geschafft"
+  var FUNNEL_BETRAG_STEP = 5;
   // Anonyme Trichter-Ereignisse beim Erreichen eines Schritts. Benannt nach der Frage
   // (nicht nach der Nummer), damit sich die Auswertung bei Umbauten nicht vermischt.
-  // Präfix "f2_" = Fragebogen-Version ab 15.11.2026.
-  var FUNNEL_STEP_EVENTS = {3:'f2_art', 4:'f2_betrag', 5:'f2_zeithorizont', 6:'f2_erfahrung_mit_gezeigt', 7:'f2_erfahrung', 8:'f2_kontakt'};
+  // Präfix "f3_" = Fragebogen-Version ab 25.11.2026 (f2_ = 15.–25.11.).
+  // Ereignis beim Erreichen von Schritt n = Frage n-1 beantwortet (Frage 1 loggt "gestartet").
+  var FUNNEL_STEP_EVENTS = {3:'f3_alter', 4:'f3_zeithorizont', 5:'f3_art', 6:'f3_betrag', 7:'f3_erfahrung'};
 
   // Step 6 ("Womit hast du schon Erfahrung?") is skipped for beginners,
   // so their path has one step less.
@@ -284,7 +285,7 @@
     var std = FUNNEL_META_EVENTS[name];
     if(std && typeof fbq === 'function') fbq('track', std);
   }
-  var FUNNEL_EXPERIENCE_STEP = 6;
+  var FUNNEL_EXPERIENCE_STEP = 0; // Erfahrungsfragen gibt es seit v3 nicht mehr
   function funnelSkipsExperienceStep(){
     var e = funnelState.answers.erfahrung;
     return !!e && e.value === 'einsteiger';
@@ -320,7 +321,7 @@
 
   function renderFunnelQuestions(){
     funnelQuestions.forEach(function(q, i){
-      if(q.field === 'groessenordnung' || q.field === 'zeithorizont') return; // rendered dynamically
+      if(q.field === 'groessenordnung') return; // dynamisch, siehe renderStep3()
       var stepEl = document.querySelector('.funnel-step[data-step="'+(i+1)+'"]');
       if(!stepEl) return;
       var optsHtml = q.options.map(function(opt){
@@ -404,7 +405,7 @@
       '</div>';
   }
   function renderStep3(){
-    var stepEl = document.querySelector('.funnel-step[data-step="3"]');
+    var stepEl = document.querySelector('.funnel-step[data-step="'+FUNNEL_BETRAG_STEP+'"]');
     if(!stepEl) return;
     var artVal = funnelState.answers.art ? funnelState.answers.art.value : 'einmalig';
     var eyebrow = '';
@@ -423,32 +424,6 @@
     stepEl.innerHTML = html;
   }
 
-  // Step 4 (Zeithorizont) also depends on step 2: the product only really
-  // pays off over longer horizons, and that's even more true for someone
-  // investing purely via monthly Sparplan (no lump sum), so that path gets
-  // noticeably longer bands than everyone else.
-  var funnelZeithorizontGeneral = [
-    ['kurz','unter 15 Jahre'],
-    ['mittel','15–20 Jahre'],
-    ['lang','20–25 Jahre'],
-    ['sehr_lang','mehr als 25 Jahre']
-  ];
-  var funnelZeithorizontMonatlich = [
-    ['kurz','unter 20 Jahre'],
-    ['mittel','20–25 Jahre'],
-    ['lang','25–30 Jahre'],
-    ['sehr_lang','mehr als 30 Jahre']
-  ];
-  function renderStep4(){
-    var stepEl = document.querySelector('.funnel-step[data-step="4"]');
-    if(!stepEl) return;
-    var artVal = funnelState.answers.art ? funnelState.answers.art.value : 'einmalig';
-    var opts = artVal === 'monatlich' ? funnelZeithorizontMonatlich : funnelZeithorizontGeneral;
-    var eyebrow = '';
-    stepEl.innerHTML = '<div class="funnel-q">'+eyebrow+'<h2>Was ist dein Zeithorizont?</h2></div>' +
-      funnelOptsHtml('zeithorizont', opts);
-  }
-
   function updateFunnelProgress(){
     var fill = document.getElementById('funnelFill');
     var label = document.getElementById('funnelLabel');
@@ -457,7 +432,7 @@
     var step = funnelState.step;
     var pct = step >= funnelTotal ? 100 : Math.round(funnelDisplayStep(step) / (funnelDisplayQuestions() + 1) * 100);
     fill.style.width = pct + '%';
-    label.textContent = step === FUNNEL_CONTACT_STEP ? 'Letzter Schritt' : (step === FUNNEL_AGE_STEP ? 'Fast geschafft' : '');
+    label.textContent = step === FUNNEL_CONTACT_STEP ? 'Letzter Schritt' : (step === FUNNEL_ALMOST_STEP ? 'Fast geschafft' : '');
   }
 
   function funnelGoTo(n){
@@ -473,8 +448,7 @@
     if(intro) intro.hidden = (n !== 1);
     var back = document.getElementById('funnelBack');
     if(back) back.hidden = (n === 1);
-    if(n === 3 && !target.innerHTML.trim()) renderStep3();
-    if(n === 4 && !target.innerHTML.trim()) renderStep4();
+    if(n === FUNNEL_BETRAG_STEP && !target.innerHTML.trim()) renderStep3();
     updateFunnelProgress();
   }
 
@@ -521,26 +495,32 @@
       var group = btn.closest('.funnel-options');
       if(group.dataset.multi){
         btn.classList.toggle('selected');
+        // "Noch nichts davon" und konkrete Erfahrungen schließen sich gegenseitig aus
+        if(btn.classList.contains('selected')){
+          var pickedNone = btn.dataset.value === 'keine';
+          group.querySelectorAll('.funnel-opt.selected').forEach(function(b){
+            if(b === btn) return;
+            if(pickedNone || b.dataset.value === 'keine') b.classList.remove('selected');
+          });
+        }
         updateMultiAnswer(group);
         return;
       }
       group.querySelectorAll('.funnel-opt').forEach(function(b){ b.classList.remove('selected'); });
       btn.classList.add('selected');
       funnelState.answers[group.dataset.field] = {value:btn.dataset.value, label:btn.dataset.label};
-      if(group.dataset.field === 'ziel'){
+      if(group.dataset.field === 'kest'){
         trackFunnelOnce('FragebogenGestartet');
         logVisitEvent('gestartet');
       }
 
-      // the amount question (step 3) depends on this answer, and its field
-      // names change between paths, so drop any stale answer and re-render.
+      // Der Betrag (Schritt 5) hängt von dieser Antwort ab, und die Feldnamen ändern
+      // sich je nach Weg: alte Betragsantworten löschen und neu bauen.
       if(group.dataset.field === 'art'){
         delete funnelState.answers.groessenordnung;
         delete funnelState.answers.einmalbetrag;
         delete funnelState.answers.sparrate;
-        delete funnelState.answers.zeithorizont;
         renderStep3();
-        renderStep4();
       }
 
       // beginners skip "Womit hast du schon Erfahrung?", so drop any earlier answer to it
