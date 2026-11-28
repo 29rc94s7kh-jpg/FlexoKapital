@@ -284,6 +284,10 @@
     funnelTracked[name] = true;
     var std = FUNNEL_META_EVENTS[name];
     if(std && typeof fbq === 'function') fbq('track', std);
+    // Zusätzlich als eigenes Ereignis: Meta erlaubt Standard-Events wie InitiateCheckout
+    // nicht als Optimierungsziel in Lead-Kampagnen, eigene Ereignisse schon (über eine
+    // benutzerdefinierte Conversion, z. B. "Kontaktschritt erreicht").
+    if(typeof fbq === 'function') fbq('trackCustom', name);
   }
   var FUNNEL_EXPERIENCE_STEP = 0; // Erfahrungsfragen gibt es seit v3 nicht mehr
   function funnelSkipsExperienceStep(){
